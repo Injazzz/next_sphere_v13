@@ -223,10 +223,10 @@ export const UpdateUserForm = ({ user }: UpdateUserFormProps) => {
               <DropdownMenuContent align='start' className='w-48'>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className='cursor-pointer flex gap-2 items-center px-2 py-1 hover:bg-zinc-800 w-full hover:rounded-sm '
+                  className='cursor-pointer flex gap-2 items-center px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 w-full hover:rounded-sm '
                 >
                   <RefreshCw className='mr-2 h-4 w-4' />
-                  <span>Change Photo</span>
+                  <span className='text-sm'>Change Photo</span>
                   <Input
                     type='file'
                     name='image'

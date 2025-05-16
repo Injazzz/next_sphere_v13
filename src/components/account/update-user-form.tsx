@@ -6,7 +6,6 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
 import { updateUser } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Pencil, X, Check, Trash2, RefreshCw } from "lucide-react";
 import {
@@ -37,7 +36,6 @@ export const UpdateUserForm = ({ user }: UpdateUserFormProps) => {
   const [tempName, setTempName] = useState(user.name || "");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,7 +81,7 @@ export const UpdateUserForm = ({ user }: UpdateUserFormProps) => {
           onSuccess: () => {
             setPreviewImage(null);
             toast.success("Profile photo removed");
-            router.refresh();
+            window.location.reload();
           },
         },
       });
@@ -145,7 +143,7 @@ export const UpdateUserForm = ({ user }: UpdateUserFormProps) => {
           },
           onSuccess: () => {
             toast.success("Profile updated successfully");
-            router.refresh();
+            window.location.reload();
           },
         },
       });

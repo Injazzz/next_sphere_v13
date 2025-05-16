@@ -4,6 +4,7 @@ import { Button } from "./button";
 import { signOut } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
+import { Loader } from "./loader";
 
 export const SignOutButton = () => {
   const [isLoggingOut, setisLoggingOut] = useState(false);
@@ -43,10 +44,10 @@ export const SignOutButton = () => {
       onClick={handleLogOut}
       variant={"destructive"}
       size={"sm"}
-      className='w-sm'
+      className='w-24 px-4'
       disabled={isLoggingOut}
     >
-      {isLoggingOut ? "Logging out..." : "Log out"}
+      {isLoggingOut ? <Loader /> : "Log out"}
     </Button>
   );
 };

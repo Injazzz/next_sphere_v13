@@ -7,6 +7,7 @@ import { Label } from "../ui/label";
 import { toast } from "sonner";
 import { sendVerificationEmail } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { Loader } from "../ui/loader";
 
 const VerifyEmailForm = () => {
   const [isPending, setIsPending] = useState(false);
@@ -60,9 +61,7 @@ const VerifyEmailForm = () => {
         />
       </div>
       <Button type='submit' disabled={isPending} className='w-full'>
-        {isPending
-          ? "Sending verification email..."
-          : "Resend verification email"}
+        {isPending ? <Loader /> : "Resend verification email"}
       </Button>
     </form>
   );

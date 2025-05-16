@@ -7,7 +7,7 @@ import Link from "next/link";
 export const GetStartedButton = () => {
   const { data: session, isPending } = useSession();
 
-  const href = session ? "/profile" : "/login";
+  const href = session ? "/dashboard" : "/login";
 
   return (
     <div className='flex flex-col items-center gap-4'>

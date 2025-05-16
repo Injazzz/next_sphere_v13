@@ -10,6 +10,7 @@ import Link from "next/link";
 import { signUpEmailServerAction } from "@/lib/server/actions/sign-up-email.action";
 import { AlertCircle, Eye, EyeClosed } from "lucide-react";
 import { OAuthButton } from "../ui/oauth-button";
+import { Loader } from "../ui/loader";
 
 export function RegisterForm({
   className,
@@ -344,7 +345,7 @@ export function RegisterForm({
         </div>
 
         <Button type='submit' className='w-full' disabled={isSubmitting}>
-          {isSubmitting ? "Registering..." : "Register"}
+          {isSubmitting ? <Loader /> : "Register"}
         </Button>
 
         <div className='after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t'>

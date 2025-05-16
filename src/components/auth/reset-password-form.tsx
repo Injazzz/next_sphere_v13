@@ -9,6 +9,7 @@ import { resetPassword } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { Eye, EyeClosed, AlertCircle } from "lucide-react"; // Asumsi menggunakan lucide-react
 import { cn } from "@/lib/utils"; // Asumsi Anda memiliki fungsi cn untuk conditional className
+import { Loader } from "../ui/loader";
 
 interface ResetPasswordProps {
   token: string;
@@ -295,7 +296,7 @@ const ResetPasswordForm = ({ token }: ResetPasswordProps) => {
       </div>
 
       <Button type='submit' disabled={isPending} className='w-full mt-6'>
-        {isPending ? "Resetting password..." : "Reset password"}
+        {isPending ? <Loader /> : "Reset password"}
       </Button>
     </form>
   );

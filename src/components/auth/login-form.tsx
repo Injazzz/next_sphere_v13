@@ -10,6 +10,7 @@ import Link from "next/link";
 import { AlertCircle, Eye, EyeClosed } from "lucide-react";
 import { signInEmailServerAction } from "@/lib/server/actions/sign-in-email.action";
 import { OAuthButton } from "../ui/oauth-button";
+import { Loader } from "../ui/loader";
 
 export function LoginForm({
   className,
@@ -26,7 +27,7 @@ export function LoginForm({
   useEffect(() => {
     if (loginSuccess) {
       const redirectTimer = setTimeout(() => {
-        window.location.replace("/profile");
+        window.location.replace("/dashboard");
       }, 1000);
       return () => clearTimeout(redirectTimer);
     }
@@ -165,7 +166,7 @@ export function LoginForm({
         </div>
 
         <Button type='submit' className='w-full' disabled={isSubmitting}>
-          {isSubmitting ? "Logging in..." : "Login"}
+          {isSubmitting ? <Loader /> : "Login"}
         </Button>
 
         <div className='after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t'>

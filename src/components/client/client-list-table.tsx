@@ -355,20 +355,11 @@ export function ClientListTable() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant='outline' className='ml-auto'>
-                      <Columns2 className='block lg:hidden' />
-                      <span className='hidden lg:block'>Columns</span>{" "}
-                      <ChevronDown className='ml-2 h-4 w-4' />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className='lg:hidden'>
-                    <p>Columns Options</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Button variant='outline' className='ml-auto'>
+                <Columns2 className='block lg:hidden' />
+                <span className='hidden lg:block'>Columns</span>{" "}
+                <ChevronDown className='ml-2 h-4 w-4' />
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               {table

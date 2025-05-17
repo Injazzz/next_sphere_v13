@@ -68,6 +68,7 @@ const formSchema = z.object({
 export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [formattedPhone, setFormattedPhone] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -81,9 +82,33 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
     },
   });
 
+  // Format phone number with dashes
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digit characters
+    const cleaned = value.replace(/\D/g, "");
+
+    // Format with dashes every 4 digits
+    const match = cleaned.match(/^(\d{0,4})(\d{0,4})(\d{0,4})(\d{0,4})$/);
+    if (match) {
+      return [match[1], match[2], match[3], match[4]].filter(Boolean).join("-");
+    }
+    return value;
+  };
+
+  // Handle phone number input changes
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setFormattedPhone(formatted);
+
+    // Update form value with raw digits (without dashes)
+    const rawValue = formatted.replace(/\D/g, "");
+    form.setValue("phone", rawValue, { shouldValidate: true });
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setLoading(true);
+      // Phone value is already clean (without dashes)
       const response = await fetch("/api/clients", {
         method: "POST",
         headers: {
@@ -98,6 +123,7 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
 
       toast.success("Client created successfully");
       form.reset();
+      setFormattedPhone(""); // Reset formatted phone
       setOpen(false);
       onSuccess();
     } catch (error) {
@@ -110,19 +136,10 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button>
-                <Plus />
-                <span className='hidden lg:block'>Add new client</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className='lg:hidden'>
-              <p>Add new client</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button>
+          <Plus />
+          <span className='hidden lg:block'>Add new client</span>
+        </Button>
       </DialogTrigger>
       <DialogContent className='sm:max-w-md rounded-2xl'>
         <DialogHeader>
@@ -166,7 +183,13 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
                 <FormItem>
                   <FormLabel>Phone</FormLabel>
                   <FormControl>
-                    <Input placeholder='+1234567890' {...field} />
+                    <Input
+                      placeholder='0812-3456-7890'
+                      {...field}
+                      value={formattedPhone}
+                      onChange={handlePhoneChange}
+                      inputMode='numeric'
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

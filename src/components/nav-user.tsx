@@ -57,6 +57,7 @@ export function NavUser({ initialSession }: NavUserProps) {
     if (!initialSession) {
       const fetchSession = async () => {
         try {
+          setIsLoading(true);
           const { data: session } = await getSession();
           setSession(session);
         } catch (error) {
@@ -92,7 +93,7 @@ export function NavUser({ initialSession }: NavUserProps) {
   const user = {
     name: session.user?.name || "User",
     email: session.user?.email || "user@example.com",
-    avatar: session.user?.image || "/avatars/default.png",
+    avatar: session.user?.image || null,
   };
 
   return (
@@ -125,10 +126,10 @@ export function NavUser({ initialSession }: NavUserProps) {
                 size='lg'
                 className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
               >
-                <Avatar className='h-8 w-8 rounded-full grayscale'>
+                <Avatar className='h-9 w-9 rounded-full grayscale'>
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback className='rounded-full'>
-                    {user.name?.substring(0, 2) || "AA"}
+                    {user.name?.substring(0, 2).toUpperCase() || "AA"}
                   </AvatarFallback>
                 </Avatar>
                 <div className='grid flex-1 text-left text-sm leading-tight'>

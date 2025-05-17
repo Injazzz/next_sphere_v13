@@ -124,7 +124,7 @@ export function AppSidebar({
             >
               <a href='#'>
                 <Blend className='!size-5' />
-                <span className='text-base font-semibold'>Acme Inc.</span>
+                <span className='text-base font-semibold'>Asphere Apps.</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

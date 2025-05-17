@@ -14,6 +14,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
+import { ChangePasswordForm } from "./change-password-form";
 
 interface User {
   id: string;
@@ -198,13 +207,9 @@ export const UpdateUserForm = ({ user }: UpdateUserFormProps) => {
                   sizes='96px'
                 />
               ) : (
-                <Image
-                  src={"/avatars/default.png"}
-                  alt='Profile'
-                  fill
-                  className='object-cover'
-                  sizes='96px'
-                />
+                <div className='w-full h-full bg-radial-[at_25%_25%] from-indigo-50 to-indigo-800 to-75%  flex items-center justify-center text-3xl font-bold'>
+                  {user.name?.substring(0, 2).toUpperCase() || "AA"}
+                </div>
               )}
             </div>
 
@@ -322,6 +327,22 @@ export const UpdateUserForm = ({ user }: UpdateUserFormProps) => {
             {user?.email || "No email provided"}
           </div>
         </div>
+
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant='outline'>Change password</Button>
+          </DialogTrigger>
+          <DialogContent className='sm:max-w-[425px]'>
+            <DialogHeader>
+              <DialogTitle>Change password</DialogTitle>
+              <DialogDescription>
+                Make changes to your password here. Click save when you&apos;re
+                done.
+              </DialogDescription>
+            </DialogHeader>
+            <ChangePasswordForm />
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

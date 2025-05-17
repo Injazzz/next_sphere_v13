@@ -73,6 +73,7 @@ export const columns: ColumnDef<Client>[] = [
         }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label='Select all'
+        className='mb-2'
       />
     ),
     cell: ({ row }) => (
@@ -80,22 +81,33 @@ export const columns: ColumnDef<Client>[] = [
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label='Select row'
+        className='mb-2'
       />
     ),
     enableSorting: false,
     enableHiding: false,
   },
   {
+    accessorKey: "gender",
+    header: "Gender",
+    cell: ({ row }) => (
+      <div className='capitalize'>{row.getValue("gender")}</div>
+    ),
+  },
+  {
     accessorKey: "name",
     header: ({ column }) => {
       return (
-        <Button
-          variant='ghost'
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
+        <div className='flex items-center'>
           Name
-          <ArrowUpDown className='ml-2 h-4 w-4' />
-        </Button>
+          <Button
+            className='ml-2'
+            variant='ghost'
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            <ArrowUpDown className='h-4 w-4' />
+          </Button>
+        </div>
       );
     },
     cell: ({ row }) => <div className='lowercase'>{row.getValue("name")}</div>,
@@ -119,13 +131,6 @@ export const columns: ColumnDef<Client>[] = [
     header: "Company",
     cell: ({ row }) => (
       <div className='capitalize'>{row.getValue("companyName")}</div>
-    ),
-  },
-  {
-    accessorKey: "gender",
-    header: "Gender",
-    cell: ({ row }) => (
-      <div className='capitalize'>{row.getValue("gender")}</div>
     ),
   },
   {
@@ -215,7 +220,6 @@ export const columns: ColumnDef<Client>[] = [
 ];
 
 export function ClientListTable() {
-  const router = useRouter();
   const [data, setData] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({

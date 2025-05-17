@@ -34,12 +34,8 @@ import {
 } from "@/components/ui/select";
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
+import { Textarea } from "../ui/textarea";
+import { Loader } from "../ui/loader";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -56,12 +52,17 @@ const formSchema = z.object({
     .regex(/^[0-9]+$/, {
       message: "Phone number must contain only digits (0-9)",
     }),
-  companyName: z.string().min(2, {
-    message: "Company name must be at least 2 characters.",
-  }),
+  companyName: z
+    .string()
+    .min(2, {
+      message: "Company name must be at least 2 characters.",
+    })
+    .transform((val) => val.toUpperCase()),
+
   companyEmail: z.string().email({
     message: "Please enter a valid company email.",
   }),
+  companyAddress: z.string().optional(),
   gender: z.enum(["Male", "Female"]),
 });
 
@@ -78,6 +79,7 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
       phone: "",
       companyName: "",
       companyEmail: "",
+      companyAddress: "",
       gender: "Male",
     },
   });
@@ -141,7 +143,7 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
           <span className='hidden lg:block'>Add new client</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className='sm:max-w-md rounded-2xl'>
+      <DialogContent className='max-w-xl w-full md:max-w-2xl rounded-2xl'>
         <DialogHeader>
           <DialogTitle>Create new client</DialogTitle>
           <DialogDescription>
@@ -149,105 +151,132 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
-            <FormField
-              control={form.control}
-              name='name'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder='John Doe' {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='email'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder='john@example.com' {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='phone'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder='0812-3456-7890'
-                      {...field}
-                      value={formattedPhone}
-                      onChange={handlePhoneChange}
-                      inputMode='numeric'
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='companyName'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder='Acme Inc' {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='companyEmail'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder='info@acme.com' {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='gender'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Gender</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder='Select gender' />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value='Male'>Male</SelectItem>
-                      <SelectItem value='Female'>Female</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(onSubmit)} className='w-full mt-5'>
+            <div className='space-y-4 grid grid-cols-1 md:grid-cols-2 gap-12'>
+              <div className='space-y-4'>
+                <FormField
+                  control={form.control}
+                  name='name'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder='John Doe' {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='gender'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder='Select gender' />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value='Male'>Male</SelectItem>
+                          <SelectItem value='Female'>Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='email'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder='john@example.com' {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='phone'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='0812-3456-7890'
+                          {...field}
+                          value={formattedPhone}
+                          onChange={handlePhoneChange}
+                          inputMode='numeric'
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className='space-y-4'>
+                <FormField
+                  control={form.control}
+                  name='companyName'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='Asphere Inc'
+                          {...field}
+                          onChange={(e) => {
+                            const upperValue = e.target.value.toUpperCase();
+                            field.onChange(upperValue);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='companyEmail'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder='yourcompany@gmail.com' {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='companyAddress'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company Address (optional)</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} className='h-27.5' />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
             <DialogFooter>
-              <Button type='submit' disabled={loading}>
-                {loading ? "Creating..." : "Create Client"}
+              <Button type='submit' disabled={loading} className='mt-5'>
+                {loading ? <Loader /> : "Create Client"}
               </Button>
             </DialogFooter>
           </form>

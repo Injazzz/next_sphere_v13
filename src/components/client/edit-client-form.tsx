@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { useState } from "react";
 import { Client } from "@/generated/prisma";
+import { Textarea } from "../ui/textarea";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -43,6 +44,7 @@ const formSchema = z.object({
   companyEmail: z.string().email({
     message: "Please enter a valid company email.",
   }),
+  companyAddress: z.string().optional(),
   gender: z.enum(["Male", "Female"]),
 });
 
@@ -58,6 +60,7 @@ export function EditClientForm({ client }: { client: Client }) {
       phone: client.phone,
       companyName: client.companyName,
       companyEmail: client.companyEmail,
+      companyAddress: client.companyAddress ?? undefined,
       gender: client.gender as "Male" | "Female",
     },
   });
@@ -102,6 +105,27 @@ export function EditClientForm({ client }: { client: Client }) {
               <FormControl>
                 <Input placeholder='John Doe' {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name='gender'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Gender</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder='Select gender' />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value='Male'>Male</SelectItem>
+                  <SelectItem value='Female'>Female</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -160,25 +184,18 @@ export function EditClientForm({ client }: { client: Client }) {
         />
         <FormField
           control={form.control}
-          name='gender'
+          name='companyAddress'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Gender</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder='Select gender' />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value='Male'>Male</SelectItem>
-                  <SelectItem value='Female'>Female</SelectItem>
-                </SelectContent>
-              </Select>
+              <FormLabel>Company Address (optional)</FormLabel>
+              <FormControl>
+                <Textarea {...field} className='h-27.5' />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <div className='flex justify-end gap-2'>
           <Button
             type='button'

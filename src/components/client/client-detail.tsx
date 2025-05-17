@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Client } from "@/generated/prisma";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export function ClientDetail({
@@ -13,6 +14,20 @@ export function ClientDetail({
 }) {
   return (
     <div className='grid gap-4 md:grid-cols-2 grid-cols-1'>
+      {client.createdById === session.user.id && (
+        <div className='md:col-span-2 flex items-center gap-2'>
+          <Button asChild variant='outline'>
+            <Link href='/dashboard/clients'>
+              <ArrowLeft /> to Clients
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href={`/dashboard/clients/${client.id}/edit`}>
+              Edit Client
+            </Link>
+          </Button>
+        </div>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Client Information</CardTitle>
@@ -27,7 +42,7 @@ export function ClientDetail({
               </div>
               <div>
                 <p className='text-sm text-muted-foreground'>Email</p>
-                <p className='font-medium truncate max-w-[180px]'>
+                <p className='font-medium truncate max-w-[300px]'>
                   {client.email}
                 </p>
               </div>
@@ -69,22 +84,16 @@ export function ClientDetail({
               <p className='text-sm text-muted-foreground'>Company Email</p>
               <p className='font-medium truncate'>{client.companyEmail}</p>
             </div>
+
+            <div className='min-w-0'>
+              <p className='text-sm text-muted-foreground'>
+                {client.companyAddress && "Company Address"}
+              </p>
+              <p className='font-medium'>{client.companyAddress}</p>
+            </div>
           </div>
         </CardContent>
       </Card>
-
-      {client.createdById === session.user.id && (
-        <div className='md:col-span-2 flex justify-end gap-2'>
-          <Button asChild variant='outline'>
-            <Link href='/dashboard/clients'>Back to Clients</Link>
-          </Button>
-          <Button asChild>
-            <Link href={`/dashboard/clients/${client.id}/edit`}>
-              Edit Client
-            </Link>
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

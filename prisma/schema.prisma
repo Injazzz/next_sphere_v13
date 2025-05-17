@@ -14,18 +14,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Post {
-  id      String @id @default(uuid())
-  title   String
-  content String
-  userId  String
+enum Gender {
+  Male
+  Female
+}
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Client {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  gender       Gender
+  phone        String
+  companyName  String
+  companyEmail String
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
-  @@map("posts")
+  @@map("clients")
 }
 
 model User {
@@ -38,9 +46,9 @@ model User {
   createdAt DateTime
   updatedAt DateTime
 
-  sessions Session[]
-  accounts Account[]
-  posts    Post[]
+  sessions          Session[]
+  accounts          Account[]
+  hasCreatedClients Client[]
 
   @@map("users")
 }

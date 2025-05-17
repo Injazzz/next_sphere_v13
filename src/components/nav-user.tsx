@@ -126,7 +126,7 @@ export function NavUser({ initialSession }: NavUserProps) {
                 size='lg'
                 className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
               >
-                <Avatar className='h-9 w-9 rounded-full grayscale'>
+                <Avatar className='h-8 w-8 rounded-full grayscale'>
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback className='rounded-full'>
                     {user.name?.substring(0, 2).toUpperCase() || "AA"}

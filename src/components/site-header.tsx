@@ -25,11 +25,17 @@ import { usePathname } from "next/navigation";
 export function SiteHeader() {
   const pathname = usePathname();
   const [breadcrumbs, setBreadcrumbs] = useState<
-    Array<{ text: string; url: string; isLast: boolean }>
+    Array<{ text: string; url: string; isLast: boolean; originalText: string }>
   >([]);
   const [hiddenPaths, setHiddenPaths] = useState<
     Array<{ text: string; url: string; isLast: boolean }>
   >([]);
+
+  // Fungsi untuk memformat teks breadcrumb
+  const formatBreadcrumbText = (text: string) => {
+    if (text.length <= 10) return text;
+    return `${text.slice(0, 2)}...${text.slice(-3)}`;
+  };
 
   useEffect(() => {
     const generateBreadcrumbs = () => {
@@ -44,7 +50,8 @@ export function SiteHeader() {
           .replace(/\b\w/g, (char) => char.toUpperCase());
 
         return {
-          text: formattedSegment,
+          text: formatBreadcrumbText(formattedSegment),
+          originalText: formattedSegment, // Simpan teks asli untuk tooltip
           url: url,
           isLast: index === pathSegments.length - 1,
         };
@@ -83,7 +90,6 @@ export function SiteHeader() {
             {breadcrumbs.map((crumb, index) => (
               <BreadcrumbItem key={index}>
                 {index > 0 && index === 1 && hiddenPaths.length > 0 && (
-                  // Show ellipsis dropdown for hidden paths
                   <>
                     <DropdownMenu>
                       <DropdownMenuTrigger className='flex items-center gap-1'>
@@ -106,9 +112,13 @@ export function SiteHeader() {
 
                 {/* Show breadcrumb as link or current page */}
                 {crumb.isLast ? (
-                  <BreadcrumbPage>{crumb.text}</BreadcrumbPage>
+                  <BreadcrumbPage title={crumb.originalText}>
+                    {crumb.text}
+                  </BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink href={crumb.url}>{crumb.text}</BreadcrumbLink>
+                  <BreadcrumbLink href={crumb.url} title={crumb.originalText}>
+                    {crumb.text}
+                  </BreadcrumbLink>
                 )}
 
                 {/* Add separator between breadcrumbs */}

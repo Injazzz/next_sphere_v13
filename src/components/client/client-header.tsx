@@ -1,5 +1,3 @@
-import React from "react";
-
 const CLientHeader = () => {
   return (
     <div className='w-full flex justify-between'>

@@ -40,7 +40,7 @@ const data = {
     },
     {
       title: "Team",
-      url: "/dashboard/team",
+      url: "/dashboard/teams",
       icon: UsersRound,
     },
     {

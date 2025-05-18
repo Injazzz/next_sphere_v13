@@ -19,6 +19,11 @@ enum Gender {
   Female
 }
 
+enum TeamRole {
+  LEADER
+  MEMBER
+}
+
 model Client {
   id             String   @id @default(uuid())
   email          String   @unique
@@ -37,6 +42,45 @@ model Client {
   @@map("clients")
 }
 
+model Team {
+  id              String           @id @default(uuid())
+  name            String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  members         TeamMember[]
+  teamInviteToken TeamInvitation[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id       String   @id @default(uuid())
+  teamId   String
+  userId   String
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@map("team_members")
+}
+
+model TeamInvitation {
+  id        String   @id @default(uuid())
+  teamId    String
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, email])
+  @@map("team_invitations")
+}
+
 model User {
   id            String  @id @default(uuid())
   name          String
@@ -49,6 +93,7 @@ model User {
 
   sessions          Session[]
   accounts          Account[]
+  teams             TeamMember[]
   hasCreatedClients Client[]
 
   @@map("users")

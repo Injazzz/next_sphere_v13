@@ -94,7 +94,7 @@ export function EditClientForm({ client }: { client: Client }) {
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className='space-y-4 max-w-xl w-full'
+        className='space-y-4 max-w-2xl w-full'
       >
         <FormField
           control={form.control}

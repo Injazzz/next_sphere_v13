@@ -49,7 +49,7 @@ export default async function TeamCard() {
             {new Date(team.createdAt).toLocaleDateString()}
           </span>
         </div>
-        <div className='flex -space-x-4 mt-5'>
+        <div className='flex -space-x-3 mt-5'>
           {sortedMembers.slice(0, 5).map((member: any) => (
             <div key={member.user.id} className='relative'>
               <Avatar
@@ -68,7 +68,7 @@ export default async function TeamCard() {
               </Avatar>
             </div>
           ))}
-          {team.members.length > 5 && (
+          {team.members.length > 3 && (
             <div className='w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-medium border-2 border-background'>
               +{team.members.length - 5}
             </div>

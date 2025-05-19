@@ -324,7 +324,7 @@ export function ClientListTable() {
 
   return (
     <div className='w-full'>
-      <div className='flex items-center justify-between py-4'>
+      <div className='flex flex-col xl:flex-row items-start xl:items-center xl:justify-between py-4 gap-3'>
         <Input
           placeholder='Search clients...'
           value={search}
@@ -344,10 +344,10 @@ export function ClientListTable() {
                   />
                   <label
                     htmlFor='myClientsOnly'
-                    className='text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70'
+                    className='text-sm flex items-center gap-2 font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70'
                   >
-                    <ContactRound className='block xl:hidden' />
-                    <span className='hidden xl:block'>My Clients Only</span>
+                    <ContactRound />
+                    <span className='block'>My Clients Only</span>
                   </label>
                 </div>
               </TooltipTrigger>
@@ -360,8 +360,8 @@ export function ClientListTable() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant='outline' className='ml-auto'>
-                <Columns2 className='block lg:hidden' />
-                <span className='hidden lg:block'>Columns</span>{" "}
+                <Columns2 className='block' />
+                <span className='hidden sm:block'>Columns</span>{" "}
                 <ChevronDown className='ml-2 h-4 w-4' />
               </Button>
             </DropdownMenuTrigger>

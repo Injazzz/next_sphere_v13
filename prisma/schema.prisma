@@ -24,6 +24,29 @@ enum TeamRole {
   MEMBER
 }
 
+enum DocumentType {
+  SPK
+  JO
+  BA
+  IS
+  SA
+  INVOICE
+}
+
+enum DocumentFlow {
+  IN
+  OUT
+}
+
+enum DocumentStatus {
+  DRAFT
+  ACTIVE
+  WARNING
+  OVERDUE
+  COMPLETED
+  APPROVED
+}
+
 model Client {
   id             String   @id @default(uuid())
   email          String   @unique
@@ -37,7 +60,8 @@ model Client {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  user     User       @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  Document Document[]
 
   @@map("clients")
 }
@@ -49,6 +73,7 @@ model Team {
   updatedAt       DateTime         @updatedAt
   members         TeamMember[]
   teamInviteToken TeamInvitation[]
+  Document        Document[]
 
   @@map("teams")
 }
@@ -81,6 +106,47 @@ model TeamInvitation {
   @@map("team_invitations")
 }
 
+model Document {
+  id           String         @id @default(uuid())
+  title        String
+  type         DocumentType
+  flow         DocumentFlow
+  status       DocumentStatus @default(DRAFT)
+  description  String?
+  startTrackAt DateTime
+  endTrackAt   DateTime
+  completedAt  DateTime?
+  approvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  createdById  String
+  clientId     String
+  files        DocumentFile[]
+  teamId       String?
+
+  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  team      Team?  @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@map("documents")
+}
+
+model DocumentFile {
+  id         String   @id @default(cuid())
+  name       String
+  url        String
+  size       Int
+  encrypted  Boolean  @default(false)
+  iv         String?
+  documentId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("document_files")
+}
+
 model User {
   id            String  @id @default(uuid())
   name          String
@@ -95,6 +161,7 @@ model User {
   accounts          Account[]
   teams             TeamMember[]
   hasCreatedClients Client[]
+  documents         Document[]
 
   @@map("users")
 }

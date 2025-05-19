@@ -39,7 +39,7 @@ export default async function EditClientPage({
   }
 
   return (
-    <div className='w-full flex flex-col gap-4'>
+    <div className='w-full flex flex-col gap-4 justify-center items-center'>
       <h1 className='text-3xl font-semibold'>Edit Client</h1>
       <EditClientForm client={client} />
     </div>

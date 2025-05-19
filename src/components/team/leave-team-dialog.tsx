@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Unlink } from "lucide-react";
 
 export function LeaveTeamDialog({ teamId }: { teamId: string }) {
   const [open, setOpen] = useState(false);
@@ -47,7 +48,8 @@ export function LeaveTeamDialog({ teamId }: { teamId: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant='outline' className='text-destructive'>
+        <Button variant='outline' size='sm' className='text-destructive'>
+          <Unlink />
           Leave Team
         </Button>
       </DialogTrigger>

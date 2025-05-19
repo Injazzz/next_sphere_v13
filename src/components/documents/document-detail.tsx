@@ -386,8 +386,8 @@ export function DocumentDetail({
                           })
                         }
                       >
-                        <Eye className='h-4 w-4 mr-2' />
-                        Preview
+                        <Eye className='h-4 w-4 sm:mr-2' />
+                        <span className='hidden sm:block'>Preview</span>
                       </Button>
                     </DrawerTrigger>
                     <DrawerContent className='h-screen sm:max-w-sm md:max-w-md lg:max-w-xl'>
@@ -413,8 +413,8 @@ export function DocumentDetail({
                     className='h-8 px-3'
                     onClick={() => handleDownload(file.id, file.name)}
                   >
-                    <Download className='h-4 w-4 mr-2' />
-                    Download
+                    <Download className='h-4 w-4 sm:mr-2' />
+                    <span className='hidden sm:block'>Download</span>
                   </Button>
                 </div>
               </CardContent>

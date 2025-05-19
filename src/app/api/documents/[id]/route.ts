@@ -151,7 +151,7 @@ export async function PATCH(
     // Only creator can update
     if (existingDocument.createdById !== session.user.id) {
       return NextResponse.json(
-        { error: "You can only update documents you created" },
+        { error: "You only can edit your own document." },
         { status: 403 }
       );
     }

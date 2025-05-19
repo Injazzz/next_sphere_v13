@@ -57,6 +57,7 @@ import { DocumentProgressBar } from "./progress-bar";
 import { DocumentCreateDialog } from "./document-create-dialog";
 import { useDocumentStatus } from "@/hooks/use-document-status";
 import { Skeleton } from "../ui/skeleton";
+import { getSession, useSession } from "@/lib/auth-client";
 
 export interface DocumentWithRelations extends Document {
   client?: {
@@ -169,6 +170,7 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
       const document = row.original;
       const router = useRouter();
       const [copied, setCopied] = useState(false);
+      const { data: session } = useSession();
       const { updateStatus } = useDocumentStatus({
         initialStatus: document.status,
         startTrackAt: document.startTrackAt,
@@ -210,14 +212,18 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
               <Eye className='mr-2 h-4 w-4' />
               View details
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() =>
-                router.push(`/dashboard/documents/${document.id}/edit`)
-              }
-            >
-              <Edit className='mr-2 h-4 w-4' />
-              Edit
-            </DropdownMenuItem>
+
+            {session?.user?.id === document.createdById && (
+              <DropdownMenuItem
+                onClick={() =>
+                  router.push(`/dashboard/documents/${document.id}/edit`)
+                }
+              >
+                <Edit className='mr-2 h-4 w-4' />
+                Edit
+              </DropdownMenuItem>
+            )}
+
             <DropdownMenuItem
               onClick={async () => {
                 navigator.clipboard.writeText(document.id);

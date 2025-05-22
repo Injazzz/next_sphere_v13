@@ -24,14 +24,11 @@ import {
 } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import { FileUpload } from "../file-upload";
-import { Calendar } from "../ui/calendar";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { cn, getFlowDisplay, getTypeDisplay } from "@/lib/utils";
+import { getFlowDisplay, getTypeDisplay } from "@/lib/utils";
 import { DocumentFlow, DocumentStatus, DocumentType } from "@/generated/prisma";
 import { ClientSearch } from "../client-search";
 import { Checkbox } from "../ui/checkbox";
+import { PopoverCalendar } from "../popover-calendar";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -49,6 +46,31 @@ type FormValues = z.infer<typeof formSchema>;
 
 interface DocumentCreateFormProps {
   onSuccess?: () => void;
+}
+
+// Calculate initial document status helper
+function calculateInitialStatus(
+  startDate: Date,
+  endDate: Date
+): DocumentStatus {
+  const today = new Date();
+  const start = new Date(startDate);
+
+  if (start > today) {
+    return "DRAFT";
+  }
+
+  const end = new Date(endDate);
+  const timeDiff = end.getTime() - today.getTime();
+  const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+  if (daysRemaining <= 0) {
+    return "OVERDUE" as DocumentStatus;
+  } else if (daysRemaining <= 10) {
+    return "WARNING" as DocumentStatus;
+  } else {
+    return "ACTIVE" as DocumentStatus;
+  }
 }
 
 export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
@@ -90,56 +112,67 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
     },
   });
 
-  const onSubmit = async (values: FormValues) => {
-    // Prevent double submissions
-    if (isSubmitting) return;
+  // Updated Document Creation (User) - Separate upload
+  const handleCreateDocument = async (values: FormValues) => {
     setIsSubmitting(true);
     try {
-      const today = new Date();
-      const startDate = new Date(values.startTrackAt);
-      let initialStatus: DocumentStatus = DocumentStatus.DRAFT;
+      // Create document first (without files)
+      const documentData = {
+        title: values.title,
+        type: values.type,
+        flow: values.flow,
+        description: values.description || "",
+        clientId: values.clientId,
+        startTrackAt: values.startTrackAt.toISOString(),
+        endTrackAt: values.endTrackAt.toISOString(),
+        teamId: values.assignToTeam && userTeam ? userTeam.id : null,
+        initialStatus: calculateInitialStatus(
+          values.startTrackAt,
+          values.endTrackAt
+        ),
+      };
 
-      // Determine initial status based on dates
-      if (startDate <= today) {
-        const endDate = new Date(values.endTrackAt);
-        const timeDiff = endDate.getTime() - today.getTime();
-        const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-
-        if (daysRemaining <= 0) {
-          initialStatus = "OVERDUE" as DocumentStatus;
-        } else if (daysRemaining <= 10) {
-          initialStatus = "WARNING" as DocumentStatus;
-        } else {
-          initialStatus = "ACTIVE" as DocumentStatus;
-        }
-      }
-
-      const formData = new FormData();
-      formData.append("title", values.title);
-      formData.append("type", values.type);
-      formData.append("flow", values.flow);
-      formData.append("description", values.description || "");
-      formData.append("clientId", values.clientId);
-      formData.append("startTrackAt", values.startTrackAt.toISOString());
-      formData.append("endTrackAt", values.endTrackAt.toISOString());
-      formData.append("initialStatus", initialStatus); // Add initial status
-      // Only add teamId if checkbox is checked and user has a team
-      if (values.assignToTeam && userTeam) {
-        formData.append("teamId", userTeam.id);
-      }
-      // Add files
-      selectedFiles.forEach((file) => {
-        formData.append("files", file);
-      });
       const response = await fetch("/api/documents", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(documentData),
       });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to create document");
       }
-      toast.success("Document created successfully");
+
+      const document = await response.json();
+
+      // Upload files if any
+      if (selectedFiles.length > 0) {
+        const formData = new FormData();
+        formData.append("documentId", document.id);
+        formData.append("fileType", "document");
+
+        selectedFiles.forEach((file) => {
+          formData.append("files", file);
+        });
+
+        const uploadResponse = await fetch("/api/files/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json();
+          console.error("File upload failed:", errorData.error);
+          toast.error("Document created but file upload failed");
+        } else {
+          toast.success("Document created with files successfully");
+        }
+      } else {
+        toast.success("Document created successfully");
+      }
+
       onSuccess?.();
     } catch (error) {
       console.error("Error creating document:", error);
@@ -149,6 +182,12 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const onSubmit = async (values: FormValues) => {
+    // Prevent double submissions
+    if (isSubmitting) return;
+    await handleCreateDocument(values);
   };
 
   // Function to validate the current step fields without advancing
@@ -222,68 +261,69 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
                 </FormItem>
               )}
             />
-            <div className='grid grid-cols-2 gap-4'>
-              <FormField
-                control={form.control}
-                name='type'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Document Type</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder='Select document type' />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.values(DocumentType).map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {getTypeDisplay(type)}{" "}
-                            <span className='text-muted-foreground'>
-                              ({type})
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='flow'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Document Flow</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder='Select document flow' />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.values(DocumentFlow).map((flow) => (
-                          <SelectItem key={flow} value={flow}>
-                            {getFlowDisplay(flow)}{" "}
-                            <span className='text-muted-foreground'>
-                              ({flow})
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+
+            <FormField
+              control={form.control}
+              name='type'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Document Type</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder='Select document type' />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.values(DocumentType).map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {getTypeDisplay(type)}{" "}
+                          <span className='text-muted-foreground'>
+                            ({type})
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='flow'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Document Flow</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder='Select document flow' />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.values(DocumentFlow).map((flow) => (
+                        <SelectItem key={flow} value={flow}>
+                          {getFlowDisplay(flow)}{" "}
+                          <span className='text-muted-foreground'>
+                            ({flow})
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name='description'
@@ -303,6 +343,7 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
             />
           </div>
         )}
+
         {step === 2 && (
           <div className='space-y-4'>
             <FormField
@@ -321,6 +362,7 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
                 </FormItem>
               )}
             />
+
             {/* Replace TeamSearch with Checkbox */}
             {userTeam && (
               <FormField
@@ -344,6 +386,7 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
                 )}
               />
             )}
+
             <div className='pt-4'>
               <FormLabel>Attachments</FormLabel>
               <FormDescription>Upload PDF files (max 5MB each)</FormDescription>
@@ -356,6 +399,7 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
             </div>
           </div>
         )}
+
         {step === 3 && (
           <div className='space-y-4'>
             <div className='grid grid-cols-2 gap-4'>
@@ -365,41 +409,16 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
                 render={({ field }) => (
                   <FormItem className='flex flex-col'>
                     <FormLabel>Start Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className='w-auto p-0 z-50'
-                        align='start'
-                        sideOffset={5}
-                        side='bottom'
-                        style={{ zIndex: 50 }}
-                      >
-                        <Calendar
-                          mode='single'
-                          selected={field.value}
-                          onSelect={handleStartDateChange}
-                          disabled={(date) => date < new Date()}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <PopoverCalendar
+                        value={field.value}
+                        onChange={handleStartDateChange}
+                        disabledDays={(date) =>
+                          date < new Date() ||
+                          date > form.getValues("endTrackAt")
+                        }
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -410,46 +429,22 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
                 render={({ field }) => (
                   <FormItem className='flex flex-col'>
                     <FormLabel>End Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className='w-auto p-0 z-50'
-                        align='start'
-                        sideOffset={5}
-                        side='bottom'
-                        style={{ zIndex: 50 }}
-                      >
-                        <Calendar
-                          mode='single'
-                          selected={field.value}
-                          onSelect={handleEndDateChange}
-                          disabled={(date) => date < new Date()}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <PopoverCalendar
+                        value={field.value}
+                        onChange={handleEndDateChange}
+                        disabledDays={(date) =>
+                          date < new Date() ||
+                          date > form.getValues("endTrackAt")
+                        }
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
             <div className='pt-4'>
               <FormLabel>Preview</FormLabel>
               <div className='border rounded-lg p-4'>
@@ -473,7 +468,6 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
                       {form.getValues("clientId") ? "Selected" : "Not selected"}
                     </p>
                   </div>
-
                   <div>
                     <p className='text-sm text-muted-foreground'>Files</p>
                     <p>{selectedFiles.length} file(s) selected</p>
@@ -483,19 +477,7 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
             </div>
           </div>
         )}
-        {step === 4 && (
-          <div className='space-y-4'>
-            <FormField
-              control={form.control}
-              name='files'
-              render={() => (
-                <FormItem>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        )}
+
         <div className='flex justify-between'>
           {step > 1 && (
             <Button
@@ -507,11 +489,13 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
               Back
             </Button>
           )}
-          {step < 4 ? (
+          {step < 3 && (
             <Button type='button' onClick={nextStep}>
               Next
             </Button>
-          ) : (
+          )}
+
+          {step === 3 && (
             <Button type='submit' disabled={isSubmitting}>
               {isSubmitting ? "Creating..." : "Create Document"}
             </Button>

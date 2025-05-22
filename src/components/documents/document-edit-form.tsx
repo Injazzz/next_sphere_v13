@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,7 +32,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn, getFlowDisplay, getTypeDisplay } from "@/lib/utils";
 import { ClientSearch } from "../client-search";
 import { Checkbox } from "../ui/checkbox";
-import { Document, DocumentFlow, DocumentType } from "@/generated/prisma";
+import {
+  Document,
+  DocumentFlow,
+  DocumentType,
+  DocumentStatus,
+} from "@/generated/prisma";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -67,6 +71,31 @@ interface DocumentEditFormProps {
   };
 }
 
+// Calculate initial document status helper
+function calculateInitialStatus(
+  startDate: Date,
+  endDate: Date
+): DocumentStatus {
+  const today = new Date();
+  const start = new Date(startDate);
+
+  if (start > today) {
+    return "DRAFT";
+  }
+
+  const end = new Date(endDate);
+  const timeDiff = end.getTime() - today.getTime();
+  const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+  if (daysRemaining <= 0) {
+    return "OVERDUE" as DocumentStatus;
+  } else if (daysRemaining <= 10) {
+    return "WARNING" as DocumentStatus;
+  } else {
+    return "ACTIVE" as DocumentStatus;
+  }
+}
+
 export function DocumentEditForm({ document }: DocumentEditFormProps) {
   const router = useRouter();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -89,7 +118,6 @@ export function DocumentEditForm({ document }: DocumentEditFormProps) {
         console.error("Failed to fetch user team", error);
       }
     };
-
     fetchUserTeam();
   }, []);
 
@@ -108,62 +136,84 @@ export function DocumentEditForm({ document }: DocumentEditFormProps) {
     },
   });
 
-  const onSubmit = async (values: FormValues) => {
+  const handleUpdateDocument = async (values: FormValues) => {
     setIsSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append("title", values.title);
-      formData.append("type", values.type);
-      formData.append("flow", values.flow);
-      formData.append("description", values.description || "");
-      formData.append("clientId", values.clientId);
-      formData.append("startTrackAt", values.startTrackAt.toISOString());
-      formData.append("endTrackAt", values.endTrackAt.toISOString());
-
-      // Only add teamId if checkbox is checked and user has a team
-      if (values.assignToTeam && userTeam) {
-        formData.append("teamId", userTeam.id);
-      } else {
-        formData.append("teamId", ""); // Remove team association
-      }
-
-      // Add new files
-      selectedFiles.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      // Add existing file IDs to keep them
-      existingFiles.forEach((file) => {
-        formData.append("existingFiles", file.id);
-      });
+      // Update document first (without files)
+      const documentData = {
+        title: values.title,
+        type: values.type,
+        flow: values.flow,
+        description: values.description || "",
+        clientId: values.clientId,
+        startTrackAt: values.startTrackAt.toISOString(),
+        endTrackAt: values.endTrackAt.toISOString(),
+        teamId: values.assignToTeam && userTeam ? userTeam.id : null,
+        initialStatus: calculateInitialStatus(
+          values.startTrackAt,
+          values.endTrackAt
+        ),
+        existingFileIds: existingFiles.map((file) => file.id), // Keep existing files
+      };
 
       const response = await fetch(`/api/documents/${document.id}`, {
         method: "PATCH",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(documentData),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        // Jika response memiliki error message, gunakan itu
-        if (data.error) {
-          throw new Error(data.error);
-        }
-        throw new Error("Failed to update document");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update document");
       }
 
-      toast.success("Document updated successfully");
+      const updatedDocument = await response.json();
+
+      if (updatedDocument.error) {
+        throw new Error(updatedDocument.error);
+      }
+      // Upload new files if any
+      if (selectedFiles.length > 0) {
+        const formData = new FormData();
+        formData.append("documentId", document.id);
+        formData.append("fileType", "document");
+
+        selectedFiles.forEach((file) => {
+          formData.append("files", file);
+        });
+
+        const uploadResponse = await fetch("/api/files/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json();
+          console.error("File upload failed:", errorData.error);
+          toast.error("Document updated but file upload failed");
+        } else {
+          toast.success("Document updated with new files successfully");
+        }
+      } else {
+        toast.success("Document updated successfully");
+      }
+
       router.push(`/dashboard/documents/${document.id}`);
       router.refresh();
     } catch (error) {
-      if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error("An unexpected error occurred");
-      }
+      console.error("Error updating document:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update document"
+      );
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const onSubmit = async (values: FormValues) => {
+    await handleUpdateDocument(values);
   };
 
   const handleFileChange = (files: File[]) => {
@@ -316,7 +366,10 @@ export function DocumentEditForm({ document }: DocumentEditFormProps) {
 
           <div className='pt-4'>
             <FormLabel>Attachments</FormLabel>
-            <FormDescription>Upload PDF files (max 5MB each)</FormDescription>
+            <FormDescription>
+              Upload multiple files (PDF, DOC, DOCX, JPG, JPEG, PNG - max 5MB
+              each)
+            </FormDescription>
 
             {existingFiles.length > 0 && (
               <div className='mb-4 space-y-2'>
@@ -328,6 +381,9 @@ export function DocumentEditForm({ document }: DocumentEditFormProps) {
                   >
                     <div className='flex items-center gap-2'>
                       <span className='text-sm'>{file.name}</span>
+                      <span className='text-xs text-muted-foreground'>
+                        ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
                     </div>
                     <Button
                       variant='ghost'
@@ -342,9 +398,10 @@ export function DocumentEditForm({ document }: DocumentEditFormProps) {
             )}
 
             <FileUpload
-              accept='.pdf'
-              multiple
+              accept='.pdf,.doc,.docx,.jpg,.jpeg,.png'
+              multiple={true}
               maxSize={5 * 1024 * 1024} // 5MB
+              uploadMode='select' // Separate upload mode like in the example
               onFilesChange={handleFileChange}
             />
           </div>
@@ -381,8 +438,8 @@ export function DocumentEditForm({ document }: DocumentEditFormProps) {
                         selected={field.value}
                         onSelect={field.onChange}
                         disabled={(date) =>
-                          date < new Date() ||
-                          date > form.getValues("endTrackAt")
+                          date < form.getValues("startTrackAt") ||
+                          date < new Date()
                         }
                         initialFocus
                       />
@@ -424,8 +481,8 @@ export function DocumentEditForm({ document }: DocumentEditFormProps) {
                         selected={field.value}
                         onSelect={field.onChange}
                         disabled={(date) =>
-                          date < form.getValues("startTrackAt") ||
-                          date < new Date()
+                          date < new Date() ||
+                          date > form.getValues("endTrackAt")
                         }
                         initialFocus
                       />

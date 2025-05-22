@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { validator } from "validation-better-auth";
 import { nextCookies } from "better-auth/next-js";
+import { magicLink } from "better-auth/plugins";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "./argon2";
 import { signInSchema, signUpSchema } from "@/lib/validations/auth-schema";
@@ -142,6 +143,38 @@ export const auth = betterAuth({
         },
       },
     ]),
+    magicLink({
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      sendMagicLink: async ({ email, token, url }, request) => {
+        // Verify this is a client email first
+        const client = await prisma.client.findUnique({
+          where: { email },
+        });
+
+        if (!client) {
+          throw new APIError("BAD_REQUEST", {
+            message: "Email not found in our client records",
+          });
+        }
+
+        await sendEmailServerAction({
+          to: email,
+          subject: "Access your documents",
+          meta: {
+            title: "Document Access Link",
+            description: "Click the link below to access your documents",
+            link: String(url),
+            buttonText: "Access Documents",
+            footer:
+              "If you didn't request this email, you can safely ignore it.",
+          },
+        });
+      },
+      // Magic link expires in 30 minutes
+      expiresIn: 60 * 30,
+      // Don't create new accounts if the email doesn't exist
+      disableSignUp: true,
+    }),
   ],
 });
 

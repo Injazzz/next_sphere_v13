@@ -157,9 +157,6 @@ export async function POST(
     if (status === "COMPLETED") {
       emailSubject = `Document Completed: ${document.title}`;
       emailDescription = `The document (${document.type}) has been marked as completed by ${document.createdBy.name}.`;
-    } else if (status === "APPROVED") {
-      emailSubject = `Document Approved: ${document.title}`;
-      emailDescription = `The document (${document.type}) has been approved by the team leader.`;
     }
 
     if (emailSubject && emailDescription && document.client?.email) {
@@ -170,7 +167,7 @@ export async function POST(
           meta: {
             title: emailSubject,
             description: emailDescription,
-            link: `${process.env.NEXT_PUBLIC_APP_URL}/documents/${document.id}`,
+            link: `${process.env.NEXT_PUBLIC_API_URL}/guests/documents/${document.id}`,
             buttonText: "View Document",
             footer: "This is an automated message, please do not reply.",
           },

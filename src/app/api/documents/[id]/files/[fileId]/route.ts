@@ -54,8 +54,6 @@ export async function GET(
     let contentType = "application/octet-stream"; // Default
 
     if (ext === ".pdf") contentType = "application/pdf";
-    else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
-    else if (ext === ".png") contentType = "image/png";
 
     // Tentukan tipe header berdasarkan query parameter
     const isPreview = request.url.includes("preview=true");

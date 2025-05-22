@@ -2,8 +2,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import * as fs from "fs";
-import { encryptFile } from "@/lib/file-encryption";
 import { sendEmailServerAction } from "@/lib/server/actions/send-mail.action";
 import { calculateDocumentStatus } from "@/lib/utils";
 import {
@@ -12,14 +10,12 @@ import {
   DocumentType,
   Prisma,
 } from "@/generated/prisma";
-import path from "path";
 
 // GET all documents (with filtering, sorting, and pagination)
 export async function GET(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -80,10 +76,11 @@ export async function GET(request: Request) {
         client: {
           select: {
             id: true,
-            companyName: true, // Pastikan ini di-include
+            companyName: true,
           },
         },
         files: true,
+        responseFile: true,
         team: {
           include: {
             members: {
@@ -107,7 +104,7 @@ export async function GET(request: Request) {
   const updatedDocuments = await Promise.all(
     documents.map(async (doc) => {
       const calculatedStatus = calculateDocumentStatus(doc);
-      // Jika status berbeda, update di database
+      // Update status if different and not in final states
       if (
         calculatedStatus !== doc.status &&
         !["COMPLETED", "APPROVED"].includes(doc.status)
@@ -137,60 +134,43 @@ export async function GET(request: Request) {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
-      isTeamLeader: !!isTeamLeader, // Include team leader status in the response
+      isTeamLeader: !!isTeamLeader,
     },
   });
 }
 
-// POST create new document
+// POST create new document (without files - files handled separately)
 export async function POST(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const formData = await request.formData();
-  const title = formData.get("title") as string;
-  const type = formData.get("type") as string;
-  const flow = formData.get("flow") as string;
-  const description = formData.get("description") as string;
-  const clientId = formData.get("clientId") as string;
-  const startTrackAt = formData.get("startTrackAt") as string;
-  const endTrackAt = formData.get("endTrackAt") as string;
-  const teamId = formData.get("teamId") as string | null;
-  const files = formData.getAll("files") as File[];
-  const initialStatus =
-    (formData.get("initialStatus") as DocumentStatus) || "DRAFT";
-
-  // Validate required fields
-  if (!title || !type || !flow || !clientId || !startTrackAt || !endTrackAt) {
-    return NextResponse.json(
-      { error: "Missing required fields" },
-      { status: 400 }
-    );
-  }
-
-  // Validate file size and type
-  for (const file of files) {
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: `File ${file.name} exceeds 5MB limit` },
-        { status: 400 }
-      );
-    }
-    if (file.type !== "application/pdf") {
-      return NextResponse.json(
-        { error: `File ${file.name} must be a PDF` },
-        { status: 400 }
-      );
-    }
-  }
-
   try {
-    // Create document first
+    const body = await request.json();
+    const {
+      title,
+      type,
+      flow,
+      description,
+      clientId,
+      startTrackAt,
+      endTrackAt,
+      teamId,
+      initialStatus = "DRAFT",
+    } = body;
+
+    // Validate required fields
+    if (!title || !type || !flow || !clientId || !startTrackAt || !endTrackAt) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Create document
     const document = await prisma.document.create({
       data: {
         title,
@@ -202,46 +182,22 @@ export async function POST(request: Request) {
         createdById: session.user.id,
         clientId,
         teamId: teamId || null,
-        status: initialStatus as DocumentStatus, // Set initial status
+        status: initialStatus as DocumentStatus,
       },
       include: {
         client: true,
+        files: true,
+        responseFile: true,
       },
     });
 
-    // Ensure upload folder exists
-    const uploadDir = path.join(
-      process.cwd(),
-      "attachments",
-      "documents",
-      "uploads"
-    );
-    await fs.promises.mkdir(uploadDir, { recursive: true });
+    // Get client token for email
+    const clientWithToken = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { token: true },
+    });
 
-    // Process and save files
-    const savedFiles = await Promise.all(
-      files.map(async (file) => {
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        // Encrypt the file
-        const { encryptedData, iv } = await encryptFile(buffer);
-        // Save to filesystem
-        const fileName = `${document.id}-${Date.now()}-${file.name}`;
-        const filePath = path.join(uploadDir, fileName);
-        await fs.promises.writeFile(filePath, encryptedData);
-        // Save file record
-        return prisma.documentFile.create({
-          data: {
-            name: file.name,
-            url: `/attachments/documents/uploads/${fileName}`,
-            size: file.size,
-            encrypted: true,
-            documentId: document.id,
-            iv: Buffer.from(iv).toString("hex"), // Store IV for later decryption
-          },
-        });
-      })
-    );
+    const documentUrl = `${process.env.NEXT_PUBLIC_API_URL}/guest/documents/${document.id}`;
 
     // Send email to client
     await sendEmailServerAction({
@@ -250,16 +206,13 @@ export async function POST(request: Request) {
       meta: {
         title: "New Document Created",
         description: `A new document (${document.type}) has been created for you. Document title: ${document.title}`,
-        link: `${process.env.NEXT_PUBLIC_APP_URL}/documents/${document.id}`,
+        link: documentUrl,
         buttonText: "View Document",
-        footer: "This is an automated message, please do not reply.",
+        footer: `Your access token: ${clientWithToken?.token}`,
       },
     });
 
-    return NextResponse.json(
-      { ...document, files: savedFiles },
-      { status: 201 }
-    );
+    return NextResponse.json(document, { status: 201 });
   } catch (error) {
     console.error("Error creating document:", error);
     return NextResponse.json(

@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 import { calculateDocumentStatus } from "@/lib/utils";
 import * as fs from "fs";
 import { DocumentFlow, DocumentType } from "@/generated/prisma";
-import { encryptFile } from "@/lib/file-encryption";
 import path from "path";
 
 async function updateDocumentStatus(documentId: string) {
@@ -54,6 +53,7 @@ export async function GET(
       include: {
         client: true,
         files: true,
+        responseFile: true,
         createdBy: {
           select: {
             id: true,
@@ -132,8 +132,6 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const documentId = (await params).id;
-  const formData = await request.formData();
-  console.log(formData);
 
   try {
     // Check if document exists and user has access
@@ -156,17 +154,19 @@ export async function PATCH(
       );
     }
 
-    // Get form data
-    const title = formData.get("title") as string;
-    const type = formData.get("type") as string;
-    const flow = formData.get("flow") as string;
-    const description = formData.get("description") as string;
-    const clientId = formData.get("clientId") as string;
-    const teamId = formData.get("teamId") as string | null;
-    const startTrackAt = formData.get("startTrackAt") as string;
-    const endTrackAt = formData.get("endTrackAt") as string;
-    const files = formData.getAll("files") as File[];
-    const existingFiles = formData.getAll("existingFiles") as string[];
+    const body = await request.json();
+
+    const {
+      title,
+      type,
+      flow,
+      description,
+      clientId,
+      teamId,
+      startTrackAt,
+      endTrackAt,
+      existingFileIds,
+    } = body;
 
     await updateDocumentStatus(documentId);
 
@@ -185,66 +185,30 @@ export async function PATCH(
       },
     });
 
-    // Handle files
-    // First, delete any files not in the existingFiles list
-    const currentFiles = await prisma.documentFile.findMany({
-      where: { documentId },
-    });
+    // Handle existing files - remove files not in existingFileIds
+    if (existingFileIds && Array.isArray(existingFileIds)) {
+      const currentFiles = await prisma.documentFile.findMany({
+        where: { documentId },
+      });
 
-    const filesToDelete = currentFiles.filter(
-      (file) => !existingFiles.includes(file.id)
-    );
+      const filesToDelete = currentFiles.filter(
+        (file) => !existingFileIds.includes(file.id)
+      );
 
-    await Promise.all(
-      filesToDelete.map(async (file) => {
-        // Delete from filesystem
-        try {
-          const filePath = path.join(process.cwd(), file.url);
-          await fs.promises.unlink(filePath);
-        } catch (error) {
-          console.error(`Error deleting file ${file.url}:`, error);
-        }
-        // Delete from database
-        await prisma.documentFile.delete({ where: { id: file.id } });
-      })
-    );
-
-    // Ensure upload folder exists
-    const uploadDir = path.join(
-      process.cwd(),
-      "attachments",
-      "documents",
-      "uploads"
-    );
-    await fs.promises.mkdir(uploadDir, { recursive: true });
-
-    // Add new files
-    await Promise.all(
-      files.map(async (file) => {
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-
-        // Encrypt the file
-        const { encryptedData, iv } = await encryptFile(buffer);
-
-        // Save to filesystem
-        const fileName = `${documentId}-${Date.now()}-${file.name}`;
-        const filePath = path.join(uploadDir, fileName);
-        await fs.promises.writeFile(filePath, encryptedData);
-
-        // Save file record
-        return prisma.documentFile.create({
-          data: {
-            name: file.name,
-            url: `/attachments/documents/uploads/${fileName}`,
-            size: file.size,
-            encrypted: true,
-            documentId: documentId,
-            iv: Buffer.from(iv).toString("hex"), // Store IV for later decryption
-          },
-        });
-      })
-    );
+      await Promise.all(
+        filesToDelete.map(async (file) => {
+          // Delete from filesystem
+          try {
+            const filePath = path.join(process.cwd(), file.url);
+            await fs.promises.unlink(filePath);
+          } catch (error) {
+            console.error(`Error deleting file ${file.url}:`, error);
+          }
+          // Delete from database
+          await prisma.documentFile.delete({ where: { id: file.id } });
+        })
+      );
+    }
 
     return NextResponse.json(updatedDocument);
   } catch (error) {

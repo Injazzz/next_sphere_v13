@@ -1,6 +1,9 @@
 import { createAuthClient } from "better-auth/react";
+import { magicLinkClient } from "better-auth/client/plugins";
+
 const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
+  plugins: [magicLinkClient()],
 });
 
 export const {
@@ -13,4 +16,5 @@ export const {
   forgetPassword,
   resetPassword,
   updateUser,
+  magicLink, // Export the magicLink functionality
 } = authClient;

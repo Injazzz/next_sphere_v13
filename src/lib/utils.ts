@@ -6,6 +6,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Generate random 6-digit token
+export function generateToken() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 export const getValidDomain = () => {
   const validDomains = ["gmail.com", "yahoo.com", "outlook.com"];
 

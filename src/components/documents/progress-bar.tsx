@@ -125,7 +125,7 @@ export function DocumentProgressBar({
         />
       </div>
       <div
-        className={`w-[150px] text-xs truncate ${
+        className={`w-full text-xs truncate ${
           status === "COMPLETED"
             ? "text-emerald-600 font-medium"
             : status === "APPROVED"

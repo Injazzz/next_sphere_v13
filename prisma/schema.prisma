@@ -53,12 +53,14 @@ model Client {
   name           String
   gender         Gender
   phone          String
+  token          String?  @unique
   companyName    String
   companyEmail   String
   companyAddress String?
   createdById    String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  sessionToken   String?  @unique
 
   user     User       @relation(fields: [createdById], references: [id], onDelete: Cascade)
   Document Document[]
@@ -107,21 +109,22 @@ model TeamInvitation {
 }
 
 model Document {
-  id           String         @id @default(uuid())
+  id           String             @id @default(uuid())
   title        String
   type         DocumentType
   flow         DocumentFlow
-  status       DocumentStatus @default(DRAFT)
+  status       DocumentStatus     @default(DRAFT)
   description  String?
   startTrackAt DateTime
   endTrackAt   DateTime
   completedAt  DateTime?
   approvedAt   DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
   createdById  String
   clientId     String
   files        DocumentFile[]
+  responseFile DocumentResponse[]
   teamId       String?
 
   createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
@@ -145,6 +148,22 @@ model DocumentFile {
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@map("document_files")
+}
+
+model DocumentResponse {
+  id         String   @id @default(uuid())
+  name       String
+  url        String
+  size       Int
+  encrypted  Boolean  @default(false)
+  iv         String?
+  documentId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("document_responses")
 }
 
 model User {

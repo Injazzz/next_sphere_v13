@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { generateToken } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -8,7 +9,6 @@ export async function GET(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -70,7 +70,6 @@ export async function POST(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -78,16 +77,43 @@ export async function POST(request: Request) {
   const body = await request.json();
 
   try {
+    // Check if email already exists in client or user table
+    if (body.email) {
+      // Check in client table
+      const existingClientWithEmail = await prisma.client.findFirst({
+        where: {
+          email: body.email,
+        },
+      });
+
+      // Check in user table
+      const existingUserWithEmail = await prisma.user.findFirst({
+        where: {
+          email: body.email,
+        },
+      });
+
+      // If email exists in either table, return error
+      if (existingClientWithEmail || existingUserWithEmail) {
+        return NextResponse.json(
+          { error: "Email already exists in either client or user records" },
+          { status: 409 } // 409 Conflict status code
+        );
+      }
+    }
+
+    // If email doesn't exist, create the client
     const client = await prisma.client.create({
       data: {
         ...body,
+        token: generateToken(), // Add this line
         createdById: session.user.id,
       },
     });
 
     return NextResponse.json(client, { status: 201 });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
+    console.error("Error creating client:", error);
     return NextResponse.json(
       { error: "Failed to create client" },
       { status: 400 }

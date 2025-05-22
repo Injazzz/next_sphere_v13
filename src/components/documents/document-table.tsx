@@ -7,7 +7,6 @@ import {
   ColumnDef,
   ColumnFiltersState,
   SortingState,
-  VisibilityState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -57,7 +56,7 @@ import { DocumentProgressBar } from "./progress-bar";
 import { DocumentCreateDialog } from "./document-create-dialog";
 import { useDocumentStatus } from "@/hooks/use-document-status";
 import { Skeleton } from "../ui/skeleton";
-import { getSession, useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 
 export interface DocumentWithRelations extends Document {
   client?: {

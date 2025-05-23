@@ -16,7 +16,6 @@ import { ArrowLeft, CalendarIcon, Clock } from "lucide-react";
 import {
   getStatusColor,
   getTypeDisplay,
-  getFlowDisplay,
   calculateDocumentStatus,
 } from "@/lib/utils";
 import { DocumentStatus, DocumentType, DocumentFlow } from "@/generated/prisma";
@@ -56,6 +55,115 @@ export default function DocumentDetail({ id }: { id: string }) {
   const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const formatRemainingTime = (remainingTime: number) => {
+    const totalSeconds = Math.abs(Math.floor(remainingTime / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hrs = Math.floor((totalSeconds % 86400) / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    // Format display berdasarkan durasi
+    if (days > 0) {
+      return `${days}d ${hrs}h ${mins}m`;
+    }
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m ${secs}s`;
+    }
+    return `${mins}m ${secs}s`;
+  };
+
+  const getTimeStatus = (document: {
+    startTrackAt: string | number | Date;
+    endTrackAt: string | number | Date;
+    status: string;
+  }) => {
+    const now = Date.now();
+    const startTime = new Date(document.startTrackAt).getTime();
+    const endTime = new Date(document.endTrackAt).getTime();
+    const remainingTime = endTime - now;
+
+    if (document.status === "COMPLETED" || document.status === "APPROVED") {
+      return {
+        status: document.status,
+        color:
+          document.status === "COMPLETED"
+            ? "text-emerald-600"
+            : "text-purple-600",
+        isOverdue: false,
+        remainingTime: 0,
+      };
+    }
+
+    if (document.status === "DRAFT") {
+      return {
+        status: "DRAFT",
+        color: "text-zinc-600",
+        isOverdue: false,
+        remainingTime: remainingTime,
+      };
+    }
+
+    if (now < startTime) {
+      return {
+        status: "NOT_STARTED",
+        color: "text-gray-600",
+        isOverdue: false,
+        remainingTime: remainingTime,
+      };
+    }
+
+    if (remainingTime <= 0) {
+      return {
+        status: "OVERDUE",
+        color: "text-red-600",
+        isOverdue: true,
+        remainingTime: remainingTime,
+      };
+    }
+
+    if (remainingTime < 7 * 24 * 60 * 60 * 1000) {
+      return {
+        status: "WARNING",
+        color: "text-orange-600",
+        isOverdue: false,
+        remainingTime: remainingTime,
+      };
+    }
+
+    return {
+      status: "ACTIVE",
+      color: "text-blue-600",
+      isOverdue: false,
+      remainingTime: remainingTime,
+    };
+  };
+
+  const useRealTimeRemainingTime = (document: Document | null) => {
+    const [timeStatus, setTimeStatus] = useState(() =>
+      document ? getTimeStatus(document) : null
+    );
+
+    useEffect(() => {
+      if (
+        !document ||
+        document.status === "COMPLETED" ||
+        document.status === "APPROVED"
+      ) {
+        return;
+      }
+
+      const interval = setInterval(() => {
+        setTimeStatus(getTimeStatus(document));
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }, [document]);
+
+    return timeStatus;
+  };
+
+  const timeStatus = useRealTimeRemainingTime(document);
+
   useEffect(() => {
     fetchDocument();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,7 +193,6 @@ export default function DocumentDetail({ id }: { id: string }) {
     fetchDocument();
   };
 
-  // Client Response Upload (Immediate upload)
   const handleFileUpload = async (files: File[]) => {
     if (files.length === 0) return;
 
@@ -177,15 +284,11 @@ export default function DocumentDetail({ id }: { id: string }) {
             Information about this document and its timeline
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className='w-full space-y-4'>
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
             <div>
               <p className='text-sm text-muted-foreground'>Type</p>
               <p className='font-medium'>{getTypeDisplay(document.type)}</p>
-            </div>
-            <div>
-              <p className='text-sm text-muted-foreground'>Direction</p>
-              <p className='font-medium'>{getFlowDisplay(document.flow)}</p>
             </div>
             <div>
               <p className='text-sm text-muted-foreground'>Description</p>
@@ -208,13 +311,34 @@ export default function DocumentDetail({ id }: { id: string }) {
               </p>
             </div>
             <div>
-              <p className='text-sm text-muted-foreground'>Timeline Progress</p>
-              <div className='space-y-2 mt-2'>
-                <DocumentProgressBar
-                  document={document}
-                  status={currentStatus}
-                />
+              <p className='text-sm text-muted-foreground'>Time Remaining</p>
+              <div className={`text-sm font-medium ${timeStatus?.color}`}>
+                {timeStatus?.isOverdue ? (
+                  <span>
+                    Overdue by{" "}
+                    {formatRemainingTime(
+                      Math.abs(timeStatus.remainingTime || 0)
+                    )}
+                  </span>
+                ) : timeStatus?.status === "COMPLETED" ? (
+                  <span>-</span>
+                ) : timeStatus?.status === "APPROVED" ? (
+                  <span>-</span>
+                ) : timeStatus?.status === "DRAFT" ? (
+                  <span>Not Started</span>
+                ) : (
+                  <span>
+                    {formatRemainingTime(timeStatus?.remainingTime || 0)}
+                  </span>
+                )}
               </div>
+            </div>
+          </div>
+
+          <div>
+            <p className='text-sm text-muted-foreground'>Timeline Progress</p>
+            <div className='space-y-2 mt-2'>
+              <DocumentProgressBar document={document} status={currentStatus} />
             </div>
           </div>
         </CardContent>
@@ -258,7 +382,6 @@ export default function DocumentDetail({ id }: { id: string }) {
                     delete: true,
                   }}
                   onDeleteSuccess={(fileId) => {
-                    // Update state setelah delete berhasil
                     setDocument((prev) =>
                       prev
                         ? {
@@ -282,11 +405,8 @@ export default function DocumentDetail({ id }: { id: string }) {
                 <FileUpload
                   accept='.pdf,.doc,.docx,.jpg,.jpeg,.png'
                   multiple={false}
-                  maxSize={10 * 1024 * 1024} // 10MB
+                  maxSize={10 * 1024 * 1024}
                   onFilesChange={handleFileUpload}
-                  // uploadMode='immediate'
-                  // documentId={document.id}
-                  // fileType='response'
                 />
               </div>
             )}

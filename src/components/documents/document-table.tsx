@@ -2,7 +2,6 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
-
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -24,14 +23,14 @@ import {
   Eye,
   FileText,
   Filter,
+  GripVertical,
   MoreHorizontal,
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -41,6 +40,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -55,7 +61,6 @@ import { DocumentStatusBadge } from "./status-badge";
 import { DocumentProgressBar } from "./progress-bar";
 import { DocumentCreateDialog } from "./document-create-dialog";
 import { useDocumentStatus } from "@/hooks/use-document-status";
-import { Skeleton } from "../ui/skeleton";
 import { useSession } from "@/lib/auth-client";
 
 export interface DocumentWithRelations extends Document {
@@ -65,44 +70,150 @@ export interface DocumentWithRelations extends Document {
   } | null;
   files?: any[];
   team?: any;
+  remainingTime?: number; // in milliseconds
 }
+
+const calculateRemainingTime = (endTrackAt: string | number | Date) => {
+  const now = Date.now();
+  const endTime = new Date(endTrackAt).getTime();
+  return endTime - now; // Positive jika masih ada waktu, negative jika overdue
+};
+
+const formatRemainingTime = (remainingTime: number) => {
+  const totalSeconds = Math.abs(Math.floor(remainingTime / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hrs = Math.floor((totalSeconds % 86400) / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+
+  // Format display berdasarkan durasi
+  if (days > 0) {
+    return `${days}d ${hrs}h ${mins}m`;
+  }
+  if (hrs > 0) {
+    return `${hrs}h ${mins}m ${secs}s`;
+  }
+  return `${mins}m ${secs}s`;
+};
+
+const getTimeStatus = (document: {
+  startTrackAt: string | number | Date;
+  endTrackAt: string | number | Date;
+  status: string;
+}) => {
+  const now = Date.now();
+  const startTime = new Date(document.startTrackAt).getTime();
+  const endTime = new Date(document.endTrackAt).getTime();
+  const remainingTime = endTime - now;
+
+  // Status berdasarkan kondisi dokumen dan waktu
+  if (document.status === "COMPLETED" || document.status === "APPROVED") {
+    return {
+      status: document.status,
+      color:
+        document.status === "COMPLETED"
+          ? "text-emerald-600"
+          : "text-purple-600",
+      isOverdue: false,
+      remainingTime: 0,
+    };
+  }
+
+  if (document.status === "DRAFT") {
+    return {
+      status: "DRAFT",
+      color: "text-zinc-600",
+      isOverdue: false,
+      remainingTime: remainingTime,
+    };
+  }
+
+  if (now < startTime) {
+    return {
+      status: "NOT_STARTED",
+      color: "text-gray-600",
+      isOverdue: false,
+      remainingTime: remainingTime,
+    };
+  }
+
+  if (remainingTime <= 0) {
+    return {
+      status: "OVERDUE",
+      color: "text-red-600",
+      isOverdue: true,
+      remainingTime: remainingTime,
+    };
+  }
+
+  // Warning jika kurang dari 7 hari (7 * 24 * 60 * 60 * 1000)
+  if (remainingTime < 7 * 24 * 60 * 60 * 1000) {
+    return {
+      status: "WARNING",
+      color: "text-orange-600",
+      isOverdue: false,
+      remainingTime: remainingTime,
+    };
+  }
+
+  return {
+    status: "ACTIVE",
+    color: "text-blue-600",
+    isOverdue: false,
+    remainingTime: remainingTime,
+  };
+};
+
+const useRealTimeRemainingTime = (document: DocumentWithRelations) => {
+  const [timeStatus, setTimeStatus] = useState(() => getTimeStatus(document));
+
+  useEffect(() => {
+    if (
+      !document ||
+      document.status === "COMPLETED" ||
+      document.status === "APPROVED"
+    ) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setTimeStatus(getTimeStatus(document));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [document]);
+
+  return timeStatus;
+};
 
 export const columns: ColumnDef<DocumentWithRelations>[] = [
   {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label='Select all'
-        className='mb-2'
-      />
-    ),
+    id: "drag",
+    header: "",
     cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label='Select row'
-        className='mb-2'
-      />
+      <div
+        className='drag-handle cursor-grab active:cursor-grabbing p-1 rounded transition-colors'
+        data-row-id={row.id}
+      >
+        <GripVertical className='h-4 w-4 text-gray-400' />
+      </div>
     ),
     enableSorting: false,
     enableHiding: false,
+    size: 40,
   },
+
   {
     accessorKey: "title",
     header: "Title",
     cell: ({ row }) => (
-      <div className='font-medium'>{row.getValue("title")}</div>
+      <div className='font-medium text-sm'>{row.getValue("title")}</div>
     ),
   },
   {
     accessorKey: "type",
     header: "Type",
-    cell: ({ row }) => <div>{row.getValue("type")}</div>,
+    cell: ({ row }) => <div className='text-sm'>{row.getValue("type")}</div>,
   },
   {
     accessorKey: "status",
@@ -125,8 +236,7 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
     header: "Progress",
     cell: ({ row }) => {
       const document = row.original;
-      // Tambahkan fallback jika document tidak ada
-      if (!document) return <Skeleton className='h-4 w-full' />;
+      if (!document) return <div></div>;
       const { currentStatus } = useDocumentStatus({
         initialStatus: document.status,
         startTrackAt: document.startTrackAt,
@@ -135,7 +245,45 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
         approvedAt: document.approvedAt,
         documentId: document.id,
       });
-      return <DocumentProgressBar document={document} status={currentStatus} />;
+      return <DocumentProgressBar status={currentStatus} document={document} />;
+    },
+  },
+  {
+    accessorKey: "remainingTime",
+    header: "Remaining Time",
+    cell: ({ row }) => {
+      const document = row.original;
+      const timeStatus = useRealTimeRemainingTime(document);
+
+      return (
+        <div className={`text-sm font-medium ${timeStatus.color}`}>
+          {timeStatus.isOverdue ? (
+            <span>
+              Overdue by{" "}
+              {formatRemainingTime(Math.abs(timeStatus.remainingTime))}
+            </span>
+          ) : timeStatus.status === "COMPLETED" ? (
+            <span>-</span>
+          ) : timeStatus.status === "APPROVED" ? (
+            <span>-</span>
+          ) : timeStatus.status === "DRAFT" ? (
+            <span>Not Started</span>
+          ) : (
+            <span>{formatRemainingTime(timeStatus.remainingTime)}</span>
+          )}
+        </div>
+      );
+    },
+    sortingFn: (rowA, rowB) => {
+      const statusA = getTimeStatus(rowA.original);
+      const statusB = getTimeStatus(rowB.original);
+
+      if (statusA.status === "COMPLETED" || statusA.status === "APPROVED")
+        return 1;
+      if (statusB.status === "COMPLETED" || statusB.status === "APPROVED")
+        return -1;
+
+      return statusA.remainingTime - statusB.remainingTime;
     },
   },
   {
@@ -144,7 +292,9 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
     cell: ({ row }) => {
       const client = row.original.client;
       return (
-        <div>{client?.companyName || `Client #${row.original.clientId}`}</div>
+        <div className='text-sm'>
+          {client?.companyName || `Client #${row.original.clientId}`}
+        </div>
       );
     },
   },
@@ -152,14 +302,18 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
     accessorKey: "startTrackAt",
     header: "Start Date",
     cell: ({ row }) => (
-      <div>{new Date(row.getValue("startTrackAt")).toLocaleDateString()}</div>
+      <div className='text-sm'>
+        {new Date(row.getValue("startTrackAt")).toLocaleDateString()}
+      </div>
     ),
   },
   {
     accessorKey: "endTrackAt",
     header: "End Date",
     cell: ({ row }) => (
-      <div>{new Date(row.getValue("endTrackAt")).toLocaleDateString()}</div>
+      <div className='text-sm'>
+        {new Date(row.getValue("endTrackAt")).toLocaleDateString()}
+      </div>
     ),
   },
   {
@@ -183,8 +337,7 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
         try {
           await updateStatus(status);
           toast.success(`Document status updated to ${status.toLowerCase()}`);
-          // Gunakan router.refresh() alih-alih window.location.reload()
-          router.refresh();
+          window.location.reload();
         } catch (error) {
           console.error("Status update error:", error);
           toast.error(
@@ -211,7 +364,6 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
               <Eye className='mr-2 h-4 w-4' />
               View details
             </DropdownMenuItem>
-
             {session?.user?.id === document.createdById && (
               <DropdownMenuItem
                 onClick={() =>
@@ -222,9 +374,8 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
                 Edit
               </DropdownMenuItem>
             )}
-
             <DropdownMenuItem
-              onClick={async () => {
+              onClick={() => {
                 navigator.clipboard.writeText(document.id);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
@@ -250,7 +401,7 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
                   <DropdownMenuItem
                     onClick={() => handleStatusChange("COMPLETED")}
                   >
-                    <FileText className='mr-2 h-4 w-4' />
+                    <Check className='mr-2 h-4 w-4' />
                     Mark as completed
                   </DropdownMenuItem>
                 </>
@@ -268,6 +419,7 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
+              className='text-red-600'
               onClick={async () => {
                 try {
                   const response = await fetch(
@@ -297,14 +449,16 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
 ];
 
 export function DocumentTable() {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<DocumentWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
     totalCount: 0,
   });
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "remainingTime", desc: false }, // Default sort by remaining time (ascending = least time first)
+  ]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState({});
   const [rowSelection, setRowSelection] = useState({});
@@ -313,6 +467,8 @@ export function DocumentTable() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [teamDocuments, setTeamDocuments] = useState(false);
   const [isTeamLeader, setIsTeamLeader] = useState(false);
+  const [draggedRow, setDraggedRow] = useState<string | null>(null);
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 
   const table = useReactTable({
     data,
@@ -351,17 +507,153 @@ export function DocumentTable() {
     },
   });
 
+  // Drag and Drop functionality
+  useEffect(() => {
+    const tableBody = tableBodyRef.current;
+    if (!tableBody) return;
+
+    let draggedElement: HTMLTableRowElement | null = null;
+    let placeholder: HTMLTableRowElement | null = null;
+
+    const handleDragStart = (e: DragEvent) => {
+      const target = e.target as HTMLElement;
+      const dragHandle = target.closest(".drag-handle");
+      if (!dragHandle) return;
+
+      const row = dragHandle.closest("tr") as HTMLTableRowElement;
+      if (!row) return;
+
+      draggedElement = row;
+      row.style.opacity = "0.5";
+      row.classList.add("dragging");
+
+      // Create placeholder
+      placeholder = row.cloneNode(true) as HTMLTableRowElement;
+      placeholder.style.visibility = "hidden";
+      placeholder.style.height = row.offsetHeight + "px";
+      placeholder.classList.add("drag-placeholder");
+
+      e.dataTransfer?.setData("text/html", row.outerHTML);
+      setDraggedRow(dragHandle.getAttribute("data-row-id"));
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      if (!draggedElement || !placeholder) return;
+
+      const target = (e.target as HTMLElement).closest(
+        "tr"
+      ) as HTMLTableRowElement;
+      if (!target || target === draggedElement || target === placeholder)
+        return;
+
+      const tbody = target.parentNode as HTMLTableSectionElement;
+      const rect = target.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+
+      if (e.clientY < midpoint) {
+        tbody.insertBefore(placeholder, target);
+      } else {
+        tbody.insertBefore(placeholder, target.nextSibling);
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      if (!draggedElement || !placeholder) return;
+
+      // Replace placeholder with dragged element
+      placeholder.parentNode?.insertBefore(draggedElement, placeholder);
+      placeholder.remove();
+
+      // Reset styles
+      draggedElement.style.opacity = "";
+      draggedElement.classList.remove("dragging");
+
+      // Get new order
+      const rows = Array.from(tableBody.querySelectorAll("tr[data-row-id]"));
+      const newOrder = rows.map((row, index) => ({
+        id: row.getAttribute("data-row-id"),
+        order: index,
+      }));
+
+      // Update data order
+      const reorderedData = [...data];
+      const draggedRowData = reorderedData.find((item, index) => {
+        const tableRow = table.getRowModel().rows[index];
+        return tableRow.id === draggedRow;
+      });
+
+      if (draggedRowData) {
+        const oldIndex = reorderedData.indexOf(draggedRowData);
+        const newIndex = newOrder.findIndex((item) => item.id === draggedRow);
+
+        reorderedData.splice(oldIndex, 1);
+        reorderedData.splice(newIndex, 0, draggedRowData);
+
+        setData(reorderedData);
+      }
+
+      cleanup();
+    };
+
+    const handleDragEnd = () => {
+      cleanup();
+    };
+
+    const cleanup = () => {
+      if (draggedElement) {
+        draggedElement.style.opacity = "";
+        draggedElement.classList.remove("dragging");
+      }
+      if (placeholder) {
+        placeholder.remove();
+      }
+      draggedElement = null;
+      placeholder = null;
+      setDraggedRow(null);
+    };
+
+    // Add event listeners
+    tableBody.addEventListener("dragstart", handleDragStart);
+    tableBody.addEventListener("dragover", handleDragOver);
+    tableBody.addEventListener("drop", handleDrop);
+    tableBody.addEventListener("dragend", handleDragEnd);
+
+    // Make drag handles draggable
+    const dragHandles = tableBody.querySelectorAll(".drag-handle");
+    dragHandles.forEach((handle) => {
+      const row = handle.closest("tr");
+      if (row) {
+        row.draggable = true;
+        row.setAttribute(
+          "data-row-id",
+          table
+            .getRowModel()
+            .rows.find(
+              (r) =>
+                r.original.id ===
+                (handle as HTMLElement).getAttribute("data-row-id")
+            )?.id || ""
+        );
+      }
+    });
+
+    return () => {
+      tableBody.removeEventListener("dragstart", handleDragStart);
+      tableBody.removeEventListener("dragover", handleDragOver);
+      tableBody.removeEventListener("drop", handleDrop);
+      tableBody.removeEventListener("dragend", handleDragEnd);
+    };
+  }, [data, table, draggedRow]);
+
   // Check if user is a team leader
   const checkTeamLeaderStatus = useCallback(async () => {
     try {
-      // Use the existing endpoint to check if user is a team leader
       const response = await fetch(`/api/documents?limit=1`);
       const result = await response.json();
-
-      // If the response includes isTeamLeader information from the API
       if (response.ok && result.meta && result.meta.isTeamLeader) {
         setIsTeamLeader(true);
-        // Automatically check the "Show Team Documents" option
         setTeamDocuments(true);
       }
     } catch (error) {
@@ -376,22 +668,42 @@ export function DocumentTable() {
         page: (pagination.pageIndex + 1).toString(),
         limit: pagination.pageSize.toString(),
         search,
-        sortBy: sorting[0]?.id || "createdAt",
+        sortBy: sorting[0]?.id || "remainingTime",
         sortOrder: sorting[0]?.desc ? "desc" : "asc",
         type: typeFilter || "",
         status: statusFilter || "",
         teamDocuments: teamDocuments.toString(),
       });
+
       const response = await fetch(`/api/documents?${params.toString()}`);
       const result = await response.json();
+
       if (response.ok) {
-        setData(result.data);
+        // Add remaining time to each document
+        const documentsWithRemainingTime = result.data.map(
+          (doc: DocumentWithRelations) => ({
+            ...doc,
+            remainingTime: calculateRemainingTime(doc.endTrackAt),
+          })
+        );
+
+        // Sort by remaining time if that's the current sort
+        if (sorting[0]?.id === "remainingTime") {
+          documentsWithRemainingTime.sort(
+            (a: { remainingTime: number }, b: { remainingTime: number }) => {
+              const timeA = a.remainingTime || 0;
+              const timeB = b.remainingTime || 0;
+              return sorting[0].desc ? timeB - timeA : timeA - timeB;
+            }
+          );
+        }
+
+        setData(documentsWithRemainingTime);
         setPagination((prev) => ({
           ...prev,
           totalCount: result.meta.total,
         }));
 
-        // Check if user is a team leader from the API response
         if (result.meta && result.meta.isTeamLeader !== undefined) {
           setIsTeamLeader(result.meta.isTeamLeader);
         }
@@ -413,12 +725,26 @@ export function DocumentTable() {
     teamDocuments,
   ]);
 
-  // Initial data load and check team leader status
+  // Auto-refresh every minute to update remaining times
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading) {
+        setData((prevData) =>
+          prevData.map((doc) => ({
+            ...doc,
+            remainingTime: calculateRemainingTime(doc.endTrackAt),
+          }))
+        );
+      }
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [loading]);
+
   useEffect(() => {
     checkTeamLeaderStatus();
   }, [checkTeamLeaderStatus]);
 
-  // Fetch documents whenever relevant dependencies change
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
@@ -428,22 +754,32 @@ export function DocumentTable() {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   };
 
-  return (
-    <div className='space-y-4'>
-      <div className='flex flex-col lg:flex-row items-start lg:items-center py-4 gap-3'>
-        <Input
-          placeholder='Search documents...'
-          value={search}
-          onChange={handleSearch}
-          className='sm:max-w-sm w-full'
-        />
+  const handlePageSizeChange = (newSize: string) => {
+    setPagination((prev) => ({
+      ...prev,
+      pageSize: parseInt(newSize),
+      pageIndex: 0,
+    }));
+  };
 
-        <div className='flex items-center ml-auto gap-2'>
+  return (
+    <div className='w-full space-y-4'>
+      <div className='flex md:items-center gap-4 flex-col md:flex-row  md:justify-between'>
+        <div className='flex space-x-2'>
+          <Input
+            placeholder='Search documents...'
+            value={search}
+            onChange={handleSearch}
+            className='max-w-sm'
+          />
+        </div>
+        <div className='flex justify-end items-center space-x-2 ml-4'>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant='outline' className='ml-auto'>
-                <Columns2 className='mr-2 h-4 w-4' />
-                <span className='hidden md:block'>Columns</span>
+              <Button variant='outline' size='sm'>
+                <Columns2 className='h-4 w-4' />
+                <span className='hidden md:block'> Columns</span>
+
                 <ChevronDown className='ml-2 h-4 w-4' />
               </Button>
             </DropdownMenuTrigger>
@@ -467,16 +803,16 @@ export function DocumentTable() {
                 })}
             </DropdownMenuContent>
           </DropdownMenu>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant='outline'>
-                <Filter className='mr-2 h-4 w-4' />
+              <Button variant='outline' size='sm'>
+                <Filter className='h-4 w-4' />
                 <span className='hidden md:block'> Filter</span>
+
                 <ChevronDown className='ml-2 h-4 w-4' />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align='end'>
+            <DropdownMenuContent align='end' className='w-48'>
               <DropdownMenuLabel>Filter by Type</DropdownMenuLabel>
               {["SPK", "JO", "BA", "IS", "SA", "INVOICE"].map((type) => (
                 <DropdownMenuCheckboxItem
@@ -512,15 +848,14 @@ export function DocumentTable() {
               <DropdownMenuSeparator />
               <DropdownMenuCheckboxItem
                 checked={teamDocuments}
-                disabled={isTeamLeader && teamDocuments}
                 onCheckedChange={setTeamDocuments}
+                disabled={!isTeamLeader}
               >
                 Show Team Documents
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <DocumentCreateDialog onSuccess={fetchDocuments} />
+          <DocumentCreateDialog onSuccess={() => window.location.reload()} />
         </div>
       </div>
 
@@ -530,7 +865,10 @@ export function DocumentTable() {
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    style={{ width: header.getSize() }}
+                  >
                     {flexRender(
                       header.column.columnDef.header,
                       header.getContext()
@@ -540,14 +878,17 @@ export function DocumentTable() {
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <TableBody ref={tableBodyRef}>
             {loading ? (
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
                   className='h-24 text-center'
                 >
-                  Loading...
+                  <div className='flex items-center justify-center space-x-2'>
+                    <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900'></div>
+                    <span>Loading...</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows?.length ? (
@@ -555,6 +896,16 @@ export function DocumentTable() {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  data-row-id={row.id}
+                  className='transition-all duration-200'
+                  style={{
+                    transform:
+                      draggedRow === row.id ? "scale(1.02)" : "scale(1)",
+                    boxShadow:
+                      draggedRow === row.id
+                        ? "0 4px 12px rgba(0,0,0,0.15)"
+                        : "none",
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -581,27 +932,53 @@ export function DocumentTable() {
       </div>
 
       <div className='flex items-center justify-between space-x-2 py-4'>
-        <div className='flex-1 text-sm text-muted-foreground'>
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {pagination.totalCount} row(s) selected.
+        <div className='flex items-center space-x-2'>
+          {/* <p className='text-sm text-muted-foreground'>
+            {table.getFilteredSelectedRowModel().rows.length} of{" "}
+            {pagination.totalCount} row(s) selected.
+          </p> */}
         </div>
         <div className='flex items-center space-x-2'>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <ChevronLeft className='h-4 w-4' />
-          </Button>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            <ChevronRight className='h-4 w-4' />
-          </Button>
+          <div className='flex items-center space-x-2'>
+            <p className='text-sm font-medium hidden md:block'>Rows per page</p>
+            <Select
+              value={pagination.pageSize.toString()}
+              onValueChange={handlePageSizeChange}
+            >
+              <SelectTrigger className='h-8 w-[70px]'>
+                <SelectValue placeholder={pagination.pageSize.toString()} />
+              </SelectTrigger>
+              <SelectContent side='top'>
+                {[10, 20, 30, 40, 50].map((pageSize) => (
+                  <SelectItem key={pageSize} value={pageSize.toString()}>
+                    {pageSize}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className='flex w-[100px] items-center justify-center text-sm font-medium'>
+            Page {pagination.pageIndex + 1} of{" "}
+            {Math.ceil(pagination.totalCount / pagination.pageSize)}
+          </div>
+          <div className='flex items-center space-x-2'>
+            <Button
+              variant='outline'
+              className='h-8 w-8 p-0'
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronLeft className='h-4 w-4' />
+            </Button>
+            <Button
+              variant='outline'
+              className='h-8 w-8 p-0'
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronRight className='h-4 w-4' />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

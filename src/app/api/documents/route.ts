@@ -11,6 +11,12 @@ import {
   Prisma,
 } from "@/generated/prisma";
 
+// Helper function to calculate remaining time in milliseconds
+const calculateRemainingTime = (endTrackAt: Date): number => {
+  const now = new Date();
+  return endTrackAt.getTime() - now.getTime();
+};
+
 // GET all documents (with filtering, sorting, and pagination)
 export async function GET(request: Request) {
   const session = await auth.api.getSession({
@@ -64,14 +70,24 @@ export async function GET(request: Request) {
     ],
   };
 
+  // Handle sorting - special case for remainingTime
+  let orderBy: Prisma.DocumentOrderByWithRelationInput = {
+    [sortBy]: sortOrder,
+  };
+
+  // If sorting by remainingTime, we'll sort in memory after fetching
+  const isRemainingTimeSort = sortBy === "remainingTime";
+  if (isRemainingTimeSort) {
+    // Default to createdAt for database query, we'll sort by remainingTime after
+    orderBy = { createdAt: "desc" };
+  }
+
   const [documents, total] = await Promise.all([
     prisma.document.findMany({
       where,
-      skip: (page - 1) * limit,
-      take: limit,
-      orderBy: {
-        [sortBy]: sortOrder,
-      },
+      skip: isRemainingTimeSort ? 0 : (page - 1) * limit, // Get all if sorting by remainingTime
+      take: isRemainingTimeSort ? undefined : limit, // Get all if sorting by remainingTime
+      orderBy,
       include: {
         client: {
           select: {
@@ -127,8 +143,35 @@ export async function GET(request: Request) {
     })
   );
 
+  // Add remaining time to each document
+  const documentsWithRemainingTime = updatedDocuments.map((doc) => ({
+    ...doc,
+    remainingTime: calculateRemainingTime(doc.endTrackAt),
+  }));
+
+  let finalDocuments = documentsWithRemainingTime;
+
+  // Handle remainingTime sorting
+  if (isRemainingTimeSort) {
+    finalDocuments.sort((a, b) => {
+      const timeA = a.remainingTime;
+      const timeB = b.remainingTime;
+
+      if (sortOrder === "desc") {
+        return timeB - timeA;
+      } else {
+        return timeA - timeB;
+      }
+    });
+
+    // Apply pagination after sorting
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    finalDocuments = finalDocuments.slice(startIndex, endIndex);
+  }
+
   return NextResponse.json({
-    data: updatedDocuments,
+    data: finalDocuments,
     meta: {
       total,
       page,

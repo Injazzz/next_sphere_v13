@@ -99,6 +99,7 @@ export function DocumentProgressBar({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getStatusText = () => {
     switch (status) {
       case "COMPLETED":
@@ -124,7 +125,7 @@ export function DocumentProgressBar({
           style={{ width: `${progress}%` }}
         />
       </div>
-      <div
+      {/* <div
         className={`w-full text-xs truncate ${
           status === "COMPLETED"
             ? "text-emerald-600 font-medium"
@@ -138,7 +139,7 @@ export function DocumentProgressBar({
         }`}
       >
         {getStatusText()}
-      </div>
+      </div> */}
     </div>
   );
 }

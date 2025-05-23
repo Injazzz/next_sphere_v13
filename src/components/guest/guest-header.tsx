@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useGuestAuth } from "@/context/auth-guest";
 import { Button } from "@/components/ui/button";
 import { LogOut, Blocks, UserRound, LibraryBig } from "lucide-react";
+import { ModeToggle } from "../ui/toggle-mode";
 
 export default function GuestHeader() {
   const pathname = usePathname();
@@ -57,6 +58,9 @@ export default function GuestHeader() {
             <span className='text-muted-foreground'>Logged in as:</span>{" "}
             <span className='font-medium'>{client.name}</span>
           </div>
+
+          <ModeToggle />
+
           <Button
             variant='outline'
             size='sm'

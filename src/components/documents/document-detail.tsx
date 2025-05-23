@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../ui/card";
-import { Trash2, Check, FileCheck, File } from "lucide-react";
+import { Trash2, Check, FileCheck, File, Clock } from "lucide-react";
 import { Badge } from "../ui/badge";
 import {
   Document,
@@ -26,7 +26,7 @@ import {
   getFlowDisplay,
   getTypeDisplay,
 } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FilesList } from "../file-list";
 
 export interface DocumentDetailProps {
@@ -50,6 +50,7 @@ export interface DocumentDetailProps {
         };
       }[];
     };
+    status: DocumentStatus;
   };
   session: {
     user: {
@@ -136,6 +137,84 @@ export interface DocumentDetailProps {
 //   );
 // };
 
+const formatRemainingTime = (remainingTime: number) => {
+  const totalSeconds = Math.abs(Math.floor(remainingTime / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hrs = Math.floor((totalSeconds % 86400) / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${hrs}h ${mins}m`;
+  }
+  if (hrs > 0) {
+    return `${hrs}h ${mins}m ${secs}s`;
+  }
+  return `${mins}m ${secs}s`;
+};
+
+const getTimeStatus = (document: DocumentDetailProps["document"]) => {
+  const now = Date.now();
+  const startTime = new Date(document.startTrackAt).getTime();
+  const endTime = new Date(document.endTrackAt).getTime();
+  const remainingTime = endTime - now;
+
+  if (document.status === "COMPLETED" || document.status === "APPROVED") {
+    return {
+      status: document.status,
+      color:
+        document.status === "COMPLETED"
+          ? "text-emerald-600"
+          : "text-purple-600",
+      isOverdue: false,
+      remainingTime: 0,
+    };
+  }
+
+  if (document.status === "DRAFT") {
+    return {
+      status: "DRAFT",
+      color: "text-zinc-600",
+      isOverdue: false,
+      remainingTime: remainingTime,
+    };
+  }
+
+  if (now < startTime) {
+    return {
+      status: "NOT_STARTED",
+      color: "text-gray-600",
+      isOverdue: false,
+      remainingTime: remainingTime,
+    };
+  }
+
+  if (remainingTime <= 0) {
+    return {
+      status: "OVERDUE",
+      color: "text-red-600",
+      isOverdue: true,
+      remainingTime: remainingTime,
+    };
+  }
+
+  if (remainingTime < 7 * 24 * 60 * 60 * 1000) {
+    return {
+      status: "WARNING",
+      color: "text-orange-600",
+      isOverdue: false,
+      remainingTime: remainingTime,
+    };
+  }
+
+  return {
+    status: "ACTIVE",
+    color: "text-blue-600",
+    isOverdue: false,
+    remainingTime: remainingTime,
+  };
+};
+
 export function DocumentDetail({
   document: doc,
   session,
@@ -147,6 +226,34 @@ export function DocumentDetail({
     (member) => member.user.id === session.user.id
   );
   const currentStatus = calculateDocumentStatus(doc);
+
+  const useRealTimeRemainingTime = (
+    document: DocumentDetailProps["document"]
+  ) => {
+    const [timeStatus, setTimeStatus] = useState(() =>
+      document ? getTimeStatus(document) : null
+    );
+
+    useEffect(() => {
+      if (
+        !document ||
+        document.status === "COMPLETED" ||
+        document.status === "APPROVED"
+      ) {
+        return;
+      }
+
+      const interval = setInterval(() => {
+        setTimeStatus(getTimeStatus(document));
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }, [document]);
+
+    return timeStatus;
+  };
+
+  const timeStatus = useRealTimeRemainingTime(doc);
 
   const handleStatusChange = async (status: DocumentStatus) => {
     try {
@@ -200,8 +307,8 @@ export function DocumentDetail({
                     size='sm'
                     onClick={() => handleStatusChange("COMPLETED")}
                   >
-                    <Check className='mr-2 h-4 w-4' />
-                    Mark Completed
+                    <Check className='h-4 w-4' />
+                    <span className='hidden md:block'> Mark Completed</span>
                   </Button>
                 )}
                 {doc.status === "COMPLETED" && isTeamLeader && (
@@ -209,8 +316,8 @@ export function DocumentDetail({
                     size='sm'
                     onClick={() => handleStatusChange("APPROVED")}
                   >
-                    <FileCheck className='mr-2 h-4 w-4' />
-                    Approve
+                    <FileCheck className='h-4 w-4' />
+                    <span className='hidden md:block'> Approve</span>
                   </Button>
                 )}
                 <Button
@@ -219,8 +326,8 @@ export function DocumentDetail({
                   onClick={handleDelete}
                   disabled={!isCreator}
                 >
-                  <Trash2 className='mr-2 h-4 w-4' />
-                  Delete
+                  <Trash2 className='h-4 w-4' />
+                  <span className='hidden md:block'> Delete</span>
                 </Button>
               </div>
             </div>
@@ -259,7 +366,7 @@ export function DocumentDetail({
             <div className='mt-6'>
               <DocumentProgressBar document={doc} status={currentStatus} />
             </div>
-            <div className='grid grid-cols-2 gap-4 mt-4'>
+            <div className='grid grid-cols-2 lg:grid-cols-3 gap-4 mt-4'>
               <div>
                 <p className='text-sm text-muted-foreground'>Start Date</p>
                 <p className='font-medium'>
@@ -271,6 +378,31 @@ export function DocumentDetail({
                 <p className='font-medium'>
                   {format(new Date(doc.endTrackAt), "PPP")}
                 </p>
+              </div>
+
+              <div>
+                <p className='text-sm text-muted-foreground'>Time Remaining</p>
+                <div className={`font-medium ${timeStatus?.color}`}>
+                  {timeStatus?.isOverdue ? (
+                    <span>
+                      Overdue by{" "}
+                      {formatRemainingTime(
+                        Math.abs(timeStatus.remainingTime || 0)
+                      )}
+                    </span>
+                  ) : timeStatus?.status === "COMPLETED" ? (
+                    <span>Completed</span>
+                  ) : timeStatus?.status === "APPROVED" ? (
+                    <span>Approved</span>
+                  ) : timeStatus?.status === "DRAFT" ? (
+                    <span>Not Started</span>
+                  ) : (
+                    <span className='flex items-center gap-1'>
+                      <Clock className='h-4 w-4' />
+                      {formatRemainingTime(timeStatus?.remainingTime || 0)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>

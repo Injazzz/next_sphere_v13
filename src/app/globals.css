@@ -126,3 +126,143 @@
 .font-pacifico {
   font-family: var(--font-pacifico);
 }
+
+/* Add these styles to your global CSS file or component styles */
+
+/* Drag handle styles */
+.drag-handle {
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.drag-handle:hover {
+  background-color: #f3f4f6;
+  border-radius: 4px;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Row being dragged */
+.dragging {
+  opacity: 0.5 !important;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  background-color: white;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+/* Placeholder for drop position */
+.drag-placeholder {
+  background-color: #dbeafe;
+  border: 2px dashed #3b82f6;
+  border-radius: 8px;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+}
+
+/* Table row hover effects */
+tbody tr {
+  transition: all 0.2s ease;
+}
+
+tbody tr:hover:not(.dragging) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Smooth transitions for reordering */
+tbody tr:not(.dragging):not(.drag-placeholder) {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Selected row styles */
+tbody tr[data-state="selected"] {
+  background-color: #eff6ff;
+  border-left: 4px solid #3b82f6;
+}
+
+/* Loading animation */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Remaining time color coding */
+.remaining-time-overdue {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.remaining-time-warning {
+  color: #ea580c;
+  font-weight: 500;
+}
+
+.remaining-time-safe {
+  color: #16a34a;
+  font-weight: 500;
+}
+
+/* Status badge animations */
+.status-badge {
+  transition: all 0.2s ease;
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Progress bar animations */
+.progress-bar {
+  transition: all 0.3s ease;
+}
+
+/* Table cell padding and alignment */
+.table-cell-content {
+  padding: 8px 4px;
+  display: flex;
+  align-items: center;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .drag-handle {
+    padding: 8px;
+  }
+
+  .table-cell-content {
+    padding: 6px 2px;
+    font-size: 14px;
+  }
+}
+
+/* Accessibility improvements */
+.drag-handle:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Smooth page transitions */
+.page-transition {
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.page-transition.loading {
+  opacity: 0.7;
+  transform: translateY(4px);
+}

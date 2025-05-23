@@ -166,8 +166,6 @@ export function DocumentCreateForm({ onSuccess }: DocumentCreateFormProps) {
           const errorData = await uploadResponse.json();
           console.error("File upload failed:", errorData.error);
           toast.error("Document created but file upload failed");
-        } else {
-          toast.success("Document created with files successfully");
         }
       } else {
         toast.success("Document created successfully");

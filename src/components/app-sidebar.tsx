@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { NavDocuments } from "@/components/nav-aging-tracks";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
@@ -16,18 +15,11 @@ import {
 } from "@/components/ui/sidebar";
 import {
   Blend,
-  ChartColumnBig,
-  CircleCheck,
   CircleHelp,
-  Clock,
-  ClockAlert,
-  ClockFading,
-  Cog,
   ContactRound,
   Folder,
+  FolderKanban,
   LayoutDashboard,
-  LibraryBig,
-  Search,
   UsersRound,
 } from "lucide-react";
 
@@ -55,53 +47,16 @@ const data = {
       icon: Folder,
     },
     {
-      title: "Analytics",
+      title: "Reports & Analytics",
       url: "/dashboard/analytics",
-      icon: ChartColumnBig,
-    },
-    {
-      title: "Reports",
-      url: "/dashboard/reports",
-      icon: LibraryBig,
+      icon: FolderKanban,
     },
   ],
   navSecondary: [
     {
-      title: "Settings",
-      url: "/dashboard/settings",
-      icon: Cog,
-    },
-    {
       title: "Get Help",
       url: "/dashboard/get-help",
       icon: CircleHelp,
-    },
-    {
-      title: "Search",
-      url: "/dashboard/search",
-      icon: Search,
-    },
-  ],
-  documents: [
-    {
-      name: "Draft",
-      url: "/dashboard/aging",
-      icon: ClockFading,
-    },
-    {
-      name: "Active",
-      url: "/dashboard/aging",
-      icon: Clock,
-    },
-    {
-      name: "Overdue",
-      url: "/dashboard/aging",
-      icon: ClockAlert,
-    },
-    {
-      name: "Completed",
-      url: "/dashboard/aging",
-      icon: CircleCheck,
     },
   ],
 };
@@ -132,10 +87,9 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className='mt-auto' />
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className='mb-4'>
         <NavUser initialSession={session} />
       </SidebarFooter>
     </Sidebar>

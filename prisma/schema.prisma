@@ -110,6 +110,7 @@ model TeamInvitation {
 
 model Document {
   id           String             @id @default(uuid())
+  isPinned     Boolean            @default(false)
   title        String
   type         DocumentType
   flow         DocumentFlow

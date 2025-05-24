@@ -13,6 +13,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -25,6 +27,7 @@ import {
   Filter,
   GripVertical,
   MoreHorizontal,
+  Pin,
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -62,6 +65,8 @@ import { DocumentProgressBar } from "./progress-bar";
 import { DocumentCreateDialog } from "./document-create-dialog";
 import { useDocumentStatus } from "@/hooks/use-document-status";
 import { useSession } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface DocumentWithRelations extends Document {
   client?: {
@@ -70,13 +75,14 @@ export interface DocumentWithRelations extends Document {
   } | null;
   files?: any[];
   team?: any;
-  remainingTime?: number; // in milliseconds
+  remainingTime?: number;
+  isCritical?: boolean;
 }
 
 const calculateRemainingTime = (endTrackAt: string | number | Date) => {
   const now = Date.now();
   const endTime = new Date(endTrackAt).getTime();
-  return endTime - now; // Positive jika masih ada waktu, negative jika overdue
+  return endTime - now;
 };
 
 const formatRemainingTime = (remainingTime: number) => {
@@ -86,7 +92,6 @@ const formatRemainingTime = (remainingTime: number) => {
   const mins = Math.floor((totalSeconds % 3600) / 60);
   const secs = totalSeconds % 60;
 
-  // Format display berdasarkan durasi
   if (days > 0) {
     return `${days}d ${hrs}h ${mins}m`;
   }
@@ -106,7 +111,6 @@ const getTimeStatus = (document: {
   const endTime = new Date(document.endTrackAt).getTime();
   const remainingTime = endTime - now;
 
-  // Status berdasarkan kondisi dokumen dan waktu
   if (document.status === "COMPLETED" || document.status === "APPROVED") {
     return {
       status: document.status,
@@ -118,7 +122,6 @@ const getTimeStatus = (document: {
       remainingTime: 0,
     };
   }
-
   if (document.status === "DRAFT") {
     return {
       status: "DRAFT",
@@ -127,7 +130,6 @@ const getTimeStatus = (document: {
       remainingTime: remainingTime,
     };
   }
-
   if (now < startTime) {
     return {
       status: "NOT_STARTED",
@@ -136,7 +138,6 @@ const getTimeStatus = (document: {
       remainingTime: remainingTime,
     };
   }
-
   if (remainingTime <= 0) {
     return {
       status: "OVERDUE",
@@ -145,8 +146,6 @@ const getTimeStatus = (document: {
       remainingTime: remainingTime,
     };
   }
-
-  // Warning jika kurang dari 7 hari (7 * 24 * 60 * 60 * 1000)
   if (remainingTime < 7 * 24 * 60 * 60 * 1000) {
     return {
       status: "WARNING",
@@ -155,7 +154,6 @@ const getTimeStatus = (document: {
       remainingTime: remainingTime,
     };
   }
-
   return {
     status: "ACTIVE",
     color: "text-blue-600",
@@ -166,7 +164,6 @@ const getTimeStatus = (document: {
 
 const useRealTimeRemainingTime = (document: DocumentWithRelations) => {
   const [timeStatus, setTimeStatus] = useState(() => getTimeStatus(document));
-
   useEffect(() => {
     if (
       !document ||
@@ -175,24 +172,70 @@ const useRealTimeRemainingTime = (document: DocumentWithRelations) => {
     ) {
       return;
     }
-
     const interval = setInterval(() => {
       setTimeStatus(getTimeStatus(document));
     }, 1000);
-
     return () => clearInterval(interval);
   }, [document]);
-
   return timeStatus;
 };
 
 export const columns: ColumnDef<DocumentWithRelations>[] = [
   {
+    id: "pin",
+    header: "",
+    cell: ({ row }) => {
+      const document = row.original;
+      const [isPinning, setIsPinning] = useState(false);
+
+      const handlePinToggle = async () => {
+        setIsPinning(true);
+        try {
+          const response = await fetch(`/api/documents/${document.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ isPinned: !document.isPinned }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to update pin status");
+          }
+
+          window.location.reload();
+        } catch (error) {
+          toast.error("Failed to update pin status");
+        } finally {
+          setIsPinning(false);
+        }
+      };
+
+      return (
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={handlePinToggle}
+          disabled={isPinning}
+          className='p-1 hover:bg-yellow-50'
+        >
+          {document.isPinned ? (
+            <Pin className='h-4 w-4 text-yellow-500 fill-yellow-500' />
+          ) : (
+            <Pin className='h-4 w-4 text-gray-400' />
+          )}
+        </Button>
+      );
+    },
+    enableSorting: false,
+    size: 40,
+  },
+  {
     id: "drag",
     header: "",
     cell: ({ row }) => (
       <div
-        className='drag-handle cursor-grab active:cursor-grabbing p-1 rounded transition-colors'
+        className='drag-handle cursor-grab active:cursor-grabbing p-1 rounded transition-colors opacity-0 group-hover:opacity-100'
         data-row-id={row.id}
       >
         <GripVertical className='h-4 w-4 text-gray-400' />
@@ -202,12 +245,16 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
     enableHiding: false,
     size: 40,
   },
-
   {
     accessorKey: "title",
     header: "Title",
     cell: ({ row }) => (
-      <div className='font-medium text-sm'>{row.getValue("title")}</div>
+      <div className='font-medium text-sm flex items-center'>
+        {row.original.isPinned && (
+          <Pin className='h-3 w-3 text-yellow-500 fill-yellow-500 mr-1' />
+        )}
+        {row.getValue("title")}
+      </div>
     ),
   },
   {
@@ -254,7 +301,6 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
     cell: ({ row }) => {
       const document = row.original;
       const timeStatus = useRealTimeRemainingTime(document);
-
       return (
         <div className={`text-sm font-medium ${timeStatus.color}`}>
           {timeStatus.isOverdue ? (
@@ -277,12 +323,10 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
     sortingFn: (rowA, rowB) => {
       const statusA = getTimeStatus(rowA.original);
       const statusB = getTimeStatus(rowB.original);
-
       if (statusA.status === "COMPLETED" || statusA.status === "APPROVED")
         return 1;
       if (statusB.status === "COMPLETED" || statusB.status === "APPROVED")
         return -1;
-
       return statusA.remainingTime - statusB.remainingTime;
     },
   },
@@ -313,6 +357,15 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
     cell: ({ row }) => (
       <div className='text-sm'>
         {new Date(row.getValue("endTrackAt")).toLocaleDateString()}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "createdAt",
+    header: "Created At",
+    cell: ({ row }) => (
+      <div className='text-sm'>
+        {new Date(row.getValue("createdAt")).toLocaleDateString()}
       </div>
     ),
   },
@@ -457,7 +510,7 @@ export function DocumentTable() {
     totalCount: 0,
   });
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "remainingTime", desc: false }, // Default sort by remaining time (ascending = least time first)
+    { id: "remainingTime", desc: false },
   ]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState({});
@@ -468,6 +521,11 @@ export function DocumentTable() {
   const [teamDocuments, setTeamDocuments] = useState(false);
   const [isTeamLeader, setIsTeamLeader] = useState(false);
   const [draggedRow, setDraggedRow] = useState<string | null>(null);
+  const [sortOption, setSortOption] = useState<{
+    field: "remainingTime" | "createdAt";
+    order: "asc" | "desc";
+  }>({ field: "remainingTime", order: "asc" });
+
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 
   const table = useReactTable({
@@ -587,10 +645,8 @@ export function DocumentTable() {
       if (draggedRowData) {
         const oldIndex = reorderedData.indexOf(draggedRowData);
         const newIndex = newOrder.findIndex((item) => item.id === draggedRow);
-
         reorderedData.splice(oldIndex, 1);
         reorderedData.splice(newIndex, 0, draggedRowData);
-
         setData(reorderedData);
       }
 
@@ -668,8 +724,8 @@ export function DocumentTable() {
         page: (pagination.pageIndex + 1).toString(),
         limit: pagination.pageSize.toString(),
         search,
-        sortBy: sorting[0]?.id || "remainingTime",
-        sortOrder: sorting[0]?.desc ? "desc" : "asc",
+        sortBy: sortOption.field,
+        sortOrder: sortOption.order,
         type: typeFilter || "",
         status: statusFilter || "",
         teamDocuments: teamDocuments.toString(),
@@ -679,31 +735,11 @@ export function DocumentTable() {
       const result = await response.json();
 
       if (response.ok) {
-        // Add remaining time to each document
-        const documentsWithRemainingTime = result.data.map(
-          (doc: DocumentWithRelations) => ({
-            ...doc,
-            remainingTime: calculateRemainingTime(doc.endTrackAt),
-          })
-        );
-
-        // Sort by remaining time if that's the current sort
-        if (sorting[0]?.id === "remainingTime") {
-          documentsWithRemainingTime.sort(
-            (a: { remainingTime: number }, b: { remainingTime: number }) => {
-              const timeA = a.remainingTime || 0;
-              const timeB = b.remainingTime || 0;
-              return sorting[0].desc ? timeB - timeA : timeA - timeB;
-            }
-          );
-        }
-
-        setData(documentsWithRemainingTime);
+        setData(result.data);
         setPagination((prev) => ({
           ...prev,
           totalCount: result.meta.total,
         }));
-
         if (result.meta && result.meta.isTeamLeader !== undefined) {
           setIsTeamLeader(result.meta.isTeamLeader);
         }
@@ -719,7 +755,7 @@ export function DocumentTable() {
     pagination.pageIndex,
     pagination.pageSize,
     search,
-    sorting,
+    sortOption,
     typeFilter,
     statusFilter,
     teamDocuments,
@@ -733,11 +769,12 @@ export function DocumentTable() {
           prevData.map((doc) => ({
             ...doc,
             remainingTime: calculateRemainingTime(doc.endTrackAt),
+            isCritical:
+              calculateRemainingTime(doc.endTrackAt) < 5 * 24 * 60 * 60 * 1000,
           }))
         );
       }
-    }, 60000); // Update every minute
-
+    }, 60000);
     return () => clearInterval(interval);
   }, [loading]);
 
@@ -764,7 +801,7 @@ export function DocumentTable() {
 
   return (
     <div className='w-full space-y-4'>
-      <div className='flex md:items-center gap-4 flex-col md:flex-row  md:justify-between'>
+      <div className='flex md:items-center gap-4 flex-col md:flex-row md:justify-between'>
         <div className='flex space-x-2'>
           <Input
             placeholder='Search documents...'
@@ -779,7 +816,6 @@ export function DocumentTable() {
               <Button variant='outline' size='sm'>
                 <Columns2 className='h-4 w-4' />
                 <span className='hidden md:block'> Columns</span>
-
                 <ChevronDown className='ml-2 h-4 w-4' />
               </Button>
             </DropdownMenuTrigger>
@@ -803,12 +839,12 @@ export function DocumentTable() {
                 })}
             </DropdownMenuContent>
           </DropdownMenu>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant='outline' size='sm'>
                 <Filter className='h-4 w-4' />
                 <span className='hidden md:block'> Filter</span>
-
                 <ChevronDown className='ml-2 h-4 w-4' />
               </Button>
             </DropdownMenuTrigger>
@@ -855,7 +891,8 @@ export function DocumentTable() {
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <DocumentCreateDialog onSuccess={() => window.location.reload()} />
+
+          <DocumentCreateDialog onSuccess={fetchDocuments} />
         </div>
       </div>
 
@@ -897,7 +934,15 @@ export function DocumentTable() {
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   data-row-id={row.id}
-                  className='transition-all duration-200'
+                  className={cn(
+                    "group transition-all duration-300 ease-in-out",
+                    row.original.isPinned
+                      ? "bg-yellow-50 dark:bg-yellow-900/10"
+                      : "",
+                    row.original.isCritical
+                      ? "border-l-4 border-orange-500"
+                      : ""
+                  )}
                   style={{
                     transform:
                       draggedRow === row.id ? "scale(1.02)" : "scale(1)",
@@ -905,6 +950,7 @@ export function DocumentTable() {
                       draggedRow === row.id
                         ? "0 4px 12px rgba(0,0,0,0.15)"
                         : "none",
+                    opacity: draggedRow === row.id ? 0.8 : 1,
                   }}
                 >
                   {row.getVisibleCells().map((cell) => (
@@ -933,10 +979,40 @@ export function DocumentTable() {
 
       <div className='flex items-center justify-between space-x-2 py-4'>
         <div className='flex items-center space-x-2'>
-          {/* <p className='text-sm text-muted-foreground'>
-            {table.getFilteredSelectedRowModel().rows.length} of{" "}
-            {pagination.totalCount} row(s) selected.
-          </p> */}
+          <Select
+            value={sortOption.field}
+            onValueChange={(value) =>
+              setSortOption((prev) => ({
+                ...prev,
+                field: value as "remainingTime" | "createdAt",
+              }))
+            }
+          >
+            <SelectTrigger className='w-[180px]'>
+              <SelectValue placeholder='Sort by' />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='remainingTime'>Remaining Time</SelectItem>
+              <SelectItem value='createdAt'>Creation Date</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() =>
+              setSortOption((prev) => ({
+                ...prev,
+                order: prev.order === "asc" ? "desc" : "asc",
+              }))
+            }
+          >
+            {sortOption.order === "asc" ? (
+              <ArrowUp className='h-4 w-4' />
+            ) : (
+              <ArrowDown className='h-4 w-4' />
+            )}
+          </Button>
         </div>
         <div className='flex items-center space-x-2'>
           <div className='flex items-center space-x-2'>

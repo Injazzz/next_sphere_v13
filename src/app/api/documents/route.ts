@@ -70,24 +70,24 @@ export async function GET(request: Request) {
     ],
   };
 
-  // Handle sorting - special case for remainingTime
-  let orderBy: Prisma.DocumentOrderByWithRelationInput = {
-    [sortBy]: sortOrder,
-  };
+  // Handle sorting - pinned items always come first
+  // eslint-disable-next-line prefer-const
+  let orderBy: Prisma.DocumentOrderByWithRelationInput[] = [
+    { isPinned: "desc" }, // Pinned items first
+  ];
 
-  // If sorting by remainingTime, we'll sort in memory after fetching
-  const isRemainingTimeSort = sortBy === "remainingTime";
-  if (isRemainingTimeSort) {
-    // Default to createdAt for database query, we'll sort by remainingTime after
-    orderBy = { createdAt: "desc" };
+  // Add the main sort
+  if (sortBy === "remainingTime") {
+    orderBy.push({ endTrackAt: sortOrder === "desc" ? "desc" : "asc" });
+  } else {
+    orderBy.push({ [sortBy]: sortOrder === "desc" ? "desc" : "asc" });
   }
 
+  // Get all documents (we'll sort in memory for complex cases)
   const [documents, total] = await Promise.all([
     prisma.document.findMany({
       where,
-      skip: isRemainingTimeSort ? 0 : (page - 1) * limit, // Get all if sorting by remainingTime
-      take: isRemainingTimeSort ? undefined : limit, // Get all if sorting by remainingTime
-      orderBy,
+      orderBy, // Now properly formatted as an array
       include: {
         client: {
           select: {
@@ -117,9 +117,11 @@ export async function GET(request: Request) {
     prisma.document.count({ where }),
   ]);
 
-  const updatedDocuments = await Promise.all(
+  // Process documents with metadata
+  const documentsWithMetadata = await Promise.all(
     documents.map(async (doc) => {
       const calculatedStatus = calculateDocumentStatus(doc);
+
       // Update status if different and not in final states
       if (
         calculatedStatus !== doc.status &&
@@ -130,45 +132,58 @@ export async function GET(request: Request) {
             where: { id: doc.id },
             data: { status: calculatedStatus },
           });
-          return { ...doc, status: calculatedStatus };
         } catch (error) {
           console.error(
             `Failed to update status for document ${doc.id}:`,
             error
           );
-          return doc;
         }
       }
-      return doc;
+
+      return {
+        ...doc,
+        status: calculatedStatus,
+        remainingTime: calculateRemainingTime(doc.endTrackAt),
+        isCritical:
+          calculateRemainingTime(doc.endTrackAt) < 5 * 24 * 60 * 60 * 1000, // <5 days
+      };
     })
   );
 
-  // Add remaining time to each document
-  const documentsWithRemainingTime = updatedDocuments.map((doc) => ({
-    ...doc,
-    remainingTime: calculateRemainingTime(doc.endTrackAt),
-  }));
+  // Apply complex sorting in memory
+  let finalDocuments = [...documentsWithMetadata];
 
-  let finalDocuments = documentsWithRemainingTime;
-
-  // Handle remainingTime sorting
-  if (isRemainingTimeSort) {
+  if (sortBy === "remainingTime") {
     finalDocuments.sort((a, b) => {
-      const timeA = a.remainingTime;
-      const timeB = b.remainingTime;
-
-      if (sortOrder === "desc") {
-        return timeB - timeA;
-      } else {
-        return timeA - timeB;
+      // Pinned items always come first
+      if (a.isPinned !== b.isPinned) {
+        return a.isPinned ? -1 : 1;
       }
+      // Then sort by remaining time
+      return sortOrder === "desc"
+        ? b.remainingTime - a.remainingTime
+        : a.remainingTime - b.remainingTime;
     });
-
-    // Apply pagination after sorting
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    finalDocuments = finalDocuments.slice(startIndex, endIndex);
+  } else if (sortBy === "createdAt") {
+    finalDocuments.sort((a, b) => {
+      // Pinned items always come first
+      if (a.isPinned !== b.isPinned) {
+        return a.isPinned ? -1 : 1;
+      }
+      // Critical items (<5 days) come next when sorting by createdAt
+      if (a.isCritical !== b.isCritical) {
+        return a.isCritical ? -1 : 1;
+      }
+      // Then sort by createdAt
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return sortOrder === "desc" ? timeB - timeA : timeA - timeB;
+    });
   }
+
+  // Apply pagination
+  const startIndex = (page - 1) * limit;
+  finalDocuments = finalDocuments.slice(startIndex, startIndex + limit);
 
   return NextResponse.json({
     data: finalDocuments,
@@ -182,7 +197,7 @@ export async function GET(request: Request) {
   });
 }
 
-// POST create new document (without files - files handled separately)
+// POST create new document
 export async function POST(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -217,6 +232,7 @@ export async function POST(request: Request) {
     const document = await prisma.document.create({
       data: {
         title,
+        isPinned: false,
         type: type as DocumentType,
         flow: flow as DocumentFlow,
         description,

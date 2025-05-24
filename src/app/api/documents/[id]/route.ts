@@ -3,9 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { calculateDocumentStatus } from "@/lib/utils";
-import * as fs from "fs";
-import { DocumentFlow, DocumentType } from "@/generated/prisma";
-import path from "path";
 
 async function updateDocumentStatus(documentId: string) {
   const document = await prisma.document.findUnique({
@@ -131,8 +128,8 @@ export async function PATCH(
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const documentId = (await params).id;
 
+  const documentId = (await params).id;
   try {
     // Check if document exists and user has access
     const existingDocument = await prisma.document.findUnique({
@@ -146,69 +143,32 @@ export async function PATCH(
       );
     }
 
-    // Only creator can update
-    if (existingDocument.createdById !== session.user.id) {
+    // Only creator or team leader can modify
+    const isCreator = existingDocument.createdById === session.user.id;
+    const isTeamLeader = existingDocument.teamId
+      ? await prisma.teamMember.findFirst({
+          where: {
+            teamId: existingDocument.teamId,
+            userId: session.user.id,
+            role: "LEADER",
+          },
+        })
+      : false;
+
+    if (!isCreator && !isTeamLeader) {
       return NextResponse.json(
-        { error: "You only can edit your own document." },
+        { error: "You don't have permission to modify this document" },
         { status: 403 }
       );
     }
 
     const body = await request.json();
 
-    const {
-      title,
-      type,
-      flow,
-      description,
-      clientId,
-      teamId,
-      startTrackAt,
-      endTrackAt,
-      existingFileIds,
-    } = body;
-
-    await updateDocumentStatus(documentId);
-
-    // Update document
+    // Update document (only isPinned if that's the only field provided)
     const updatedDocument = await prisma.document.update({
       where: { id: documentId },
-      data: {
-        title,
-        type: type as DocumentType,
-        flow: flow as DocumentFlow,
-        description,
-        clientId,
-        teamId: teamId || null,
-        startTrackAt: new Date(startTrackAt),
-        endTrackAt: new Date(endTrackAt),
-      },
+      data: body.isPinned !== undefined ? { isPinned: body.isPinned } : body,
     });
-
-    // Handle existing files - remove files not in existingFileIds
-    if (existingFileIds && Array.isArray(existingFileIds)) {
-      const currentFiles = await prisma.documentFile.findMany({
-        where: { documentId },
-      });
-
-      const filesToDelete = currentFiles.filter(
-        (file) => !existingFileIds.includes(file.id)
-      );
-
-      await Promise.all(
-        filesToDelete.map(async (file) => {
-          // Delete from filesystem
-          try {
-            const filePath = path.join(process.cwd(), file.url);
-            await fs.promises.unlink(filePath);
-          } catch (error) {
-            console.error(`Error deleting file ${file.url}:`, error);
-          }
-          // Delete from database
-          await prisma.documentFile.delete({ where: { id: file.id } });
-        })
-      );
-    }
 
     return NextResponse.json(updatedDocument);
   } catch (error) {
@@ -219,7 +179,6 @@ export async function PATCH(
     );
   }
 }
-
 // DELETE document
 export async function DELETE(
   request: Request,

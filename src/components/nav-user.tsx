@@ -33,13 +33,7 @@ import { useRouter } from "next/navigation";
 import { getSession } from "@/lib/auth-client";
 import { Skeleton } from "./ui/skeleton";
 import Link from "next/link";
-import {
-  Bell,
-  CircleUserRound,
-  CreditCard,
-  EllipsisVertical,
-  LogOut,
-} from "lucide-react";
+import { CircleUserRound, EllipsisVertical, LogOut } from "lucide-react";
 
 interface NavUserProps {
   initialSession?: any;
@@ -171,14 +165,14 @@ export function NavUser({ initialSession }: NavUserProps) {
                     Account
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                {/* <DropdownMenuItem>
                   <CreditCard className='mr-2 size-4' />
                   Billing
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Bell className='mr-2 size-4' />
                   Notifications
-                </DropdownMenuItem>
+                </DropdownMenuItem> */}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setLogoutDialogOpen(true)}>

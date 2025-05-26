@@ -10,7 +10,6 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -18,7 +17,6 @@ import {
   ArrowUpDown,
   Check,
   ChevronDown,
-  ChevronLast,
   ChevronLeft,
   ChevronRight,
   Columns2,

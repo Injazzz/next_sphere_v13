@@ -54,7 +54,7 @@ const data = {
   ],
   navSecondary: [
     {
-      title: "Get Help",
+      title: "Help & Support",
       url: "/dashboard/get-help",
       icon: CircleHelp,
     },

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyGuestSession } from "@/lib/auth-guest";
 import { prisma } from "@/lib/prisma";
-import { calculateDocumentStatus } from "@/lib/utils";
+import { calculateServerDocumentStatus } from "@/lib/server-utils";
 
 export async function GET(
   request: Request,
@@ -38,7 +38,7 @@ export async function GET(
     // Calculate current status
     const documentWithStatus = {
       ...document,
-      computedStatus: calculateDocumentStatus({
+      computedStatus: calculateServerDocumentStatus({
         status: document.status,
         startTrackAt: document.startTrackAt,
         endTrackAt: document.endTrackAt,

@@ -3,13 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { sendEmailServerAction } from "@/lib/server/actions/send-mail.action";
-import { calculateDocumentStatus } from "@/lib/utils";
 import {
   DocumentFlow,
   DocumentStatus,
   DocumentType,
   Prisma,
 } from "@/generated/prisma";
+import { calculateServerDocumentStatus } from "@/lib/server-utils";
 
 // Helper function to calculate remaining time in milliseconds
 const calculateRemainingTime = (endTrackAt: Date): number => {
@@ -120,7 +120,7 @@ export async function GET(request: Request) {
   // Process documents with metadata
   const documentsWithMetadata = await Promise.all(
     documents.map(async (doc) => {
-      const calculatedStatus = calculateDocumentStatus(doc);
+      const calculatedStatus = calculateServerDocumentStatus(doc);
 
       // Update status if different and not in final states
       if (

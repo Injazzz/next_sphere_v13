@@ -2,7 +2,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { calculateDocumentStatus } from "@/lib/utils";
+
+import { calculateServerDocumentStatus } from "@/lib/server-utils";
 
 async function updateDocumentStatus(documentId: string) {
   const document = await prisma.document.findUnique({
@@ -11,7 +12,7 @@ async function updateDocumentStatus(documentId: string) {
 
   if (!document) return null;
 
-  const calculatedStatus = calculateDocumentStatus(document);
+  const calculatedStatus = calculateServerDocumentStatus(document);
 
   // Only update if status is different and not a manual status
   if (
@@ -102,7 +103,7 @@ export async function GET(
       );
     }
 
-    const calculatedStatus = calculateDocumentStatus(document);
+    const calculatedStatus = calculateServerDocumentStatus(document);
 
     return NextResponse.json({
       ...document,

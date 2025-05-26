@@ -2,8 +2,8 @@
 import { DocumentStatus } from "@/generated/prisma";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { calculateServerDocumentStatus } from "@/lib/server-utils";
 import { sendEmailServerAction } from "@/lib/server/actions/send-mail.action";
-import { calculateDocumentStatus } from "@/lib/utils";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -65,7 +65,7 @@ export async function POST(
     }
 
     // IMPORTANT: Calculate the current status based on dates
-    const calculatedStatus = calculateDocumentStatus(document);
+    const calculatedStatus = calculateServerDocumentStatus(document);
     console.log("DB status:", document.status);
     console.log("Calculated status:", calculatedStatus);
 

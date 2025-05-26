@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DocumentStatus } from "@/generated/prisma";
 import { calculateDocumentStatus } from "@/lib/utils";
 
@@ -25,29 +25,30 @@ export function useDocumentStatus({
     useState<DocumentStatus>(initialStatus);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  // Fungsi untuk update status ke database
-  const updateStatusInDatabase = async (newStatus: DocumentStatus) => {
-    try {
-      const response = await fetch(`/api/documents/${documentId}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
+  const updateStatusInDatabase = useCallback(
+    async (newStatus: DocumentStatus) => {
+      try {
+        const response = await fetch(`/api/documents/${documentId}/status`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: newStatus }),
+        });
 
-      if (!response.ok) {
-        throw new Error("Failed to update status in database");
+        if (!response.ok) {
+          throw new Error("Failed to update status in database");
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error("Error updating document status:", error);
+        throw error;
       }
+    },
+    [documentId]
+  );
 
-      return await response.json();
-    } catch (error) {
-      console.error("Error updating document status:", error);
-      throw error;
-    }
-  };
-
-  // Efek untuk mengecek dan update status secara berkala
   useEffect(() => {
     const checkStatus = () => {
       const calculatedStatus = calculateDocumentStatus({
@@ -63,20 +64,19 @@ export function useDocumentStatus({
         updateStatusInDatabase(calculatedStatus)
           .then(() => setLastUpdated(new Date()))
           .catch(() => {
-            // Rollback jika update gagal
+            // Rollback if update fails
             setCurrentStatus(currentStatus);
           });
       }
     };
 
-    // Jalankan pengecekan segera
+    // Run check immediately
     checkStatus();
 
-    // Set interval untuk pengecekan berkala (setiap 5 menit)
+    // Set interval for periodic checks (every 5 minutes)
     const interval = setInterval(checkStatus, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentStatus,
     startTrackAt,
@@ -84,15 +84,21 @@ export function useDocumentStatus({
     completedAt,
     approvedAt,
     documentId,
+    updateStatusInDatabase,
   ]);
 
-  return {
-    currentStatus,
-    lastUpdated,
-    updateStatus: async (newStatus: DocumentStatus) => {
+  const updateStatus = useCallback(
+    async (newStatus: DocumentStatus) => {
       await updateStatusInDatabase(newStatus);
       setCurrentStatus(newStatus);
       setLastUpdated(new Date());
     },
+    [updateStatusInDatabase]
+  );
+
+  return {
+    currentStatus,
+    lastUpdated,
+    updateStatus,
   };
 }

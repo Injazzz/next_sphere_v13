@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "./argon2";
 import { signInSchema, signUpSchema } from "@/lib/validations/auth-schema";
 import { createAuthMiddleware, APIError } from "better-auth/api";
-import { getValidDomain, normalizeUsername } from "./utils";
+import { getValidDomain, normalizeUsername } from "./server-utils";
 import { sendEmailServerAction } from "./server/actions/send-mail.action";
 
 export const auth = betterAuth({

@@ -4,55 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
 
-export default async function DashboardPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  // Get user's team role to determine access level
-  const userTeamRole = await prisma.teamMember.findFirst({
-    where: {
-      userId: session.user.id,
-      role: "LEADER",
-    },
-    include: {
-      team: true,
-    },
-  });
-
-  const isLeader = !!userTeamRole;
-
-  // Get dashboard summary data
-  const dashboardData = await getDashboardSummary(
-    session.user.id,
-    isLeader,
-    userTeamRole?.teamId
-  );
-
-  return (
-    <div className='flex flex-col gap-6 p-6'>
-      <div className='flex items-center justify-between'>
-        <div>
-          <h1 className='text-3xl font-semibold'>Dashboard</h1>
-          <p className='text-muted-foreground mt-2'>
-            Welcome back, {session.user.name}
-          </p>
-        </div>
-      </div>
-
-      <DashboardOverview
-        data={dashboardData}
-        isLeader={isLeader}
-        userId={session.user.id}
-      />
-    </div>
-  );
-}
-
 async function getDashboardSummary(
   userId: string,
   isLeader: boolean,
@@ -228,4 +179,53 @@ async function getDashboardSummary(
         : now > doc.endTrackAt,
     })),
   };
+}
+
+export default async function DashboardPage() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  // Get user's team role to determine access level
+  const userTeamRole = await prisma.teamMember.findFirst({
+    where: {
+      userId: session.user.id,
+      role: "LEADER",
+    },
+    include: {
+      team: true,
+    },
+  });
+
+  const isLeader = !!userTeamRole;
+
+  // Get dashboard summary data
+  const dashboardData = await getDashboardSummary(
+    session.user.id,
+    isLeader,
+    userTeamRole?.teamId
+  );
+
+  return (
+    <div className='flex flex-col gap-6 p-6'>
+      <div className='flex items-center justify-between'>
+        <div>
+          <h1 className='text-3xl font-semibold'>Dashboard</h1>
+          <p className='text-muted-foreground mt-2'>
+            Welcome back, {session.user.name}
+          </p>
+        </div>
+      </div>
+
+      <DashboardOverview
+        data={dashboardData}
+        isLeader={isLeader}
+        userId={session.user.id}
+      />
+    </div>
+  );
 }

@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
-import { generateToken } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
+import { generateToken } from "@/lib/server-utils";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 

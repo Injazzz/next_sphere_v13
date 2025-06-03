@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useCallback } from "react";
 import { AnalyticsData } from "@/types/analytics";
@@ -14,10 +15,18 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
     client: "all",
   });
 
+  // Company Information
+  const companyInfo = {
+    name: "PT. Sigma Mitra Sejati",
+    subtitle: "Refractory & Insulation",
+    address:
+      "Ruko, Jl. Bonakarta No.1 Blok C, Masigit, Kec. Jombang, Kota Cilegon, Banten 42414",
+    logo: "/logo-sms.jpg", // Path ke logo di folder public
+  };
+
   // Filter documents based on time range and filters
   const filteredDocuments = useMemo(() => {
     const cutoffDate = data.ranges[timeRange as keyof typeof data.ranges];
-
     return data.documents.filter((doc) => {
       const dateMatch = new Date(doc.createdAt) >= cutoffDate;
       const typeMatch =
@@ -27,10 +36,8 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
         filters.status === "all" || doc.status === filters.status;
       const clientMatch =
         filters.client === "all" || doc.client.id === filters.client;
-
       return dateMatch && typeMatch && flowMatch && statusMatch && clientMatch;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.documents, data.ranges, timeRange, filters]);
 
   // Calculate comprehensive metrics
@@ -72,7 +79,6 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
         (timeRange.includes("y") ? 365 : 1),
       90
     );
-
     const dateMap = new Map();
 
     // Initialize all dates
@@ -118,7 +124,6 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
   const documentTypeData = useMemo(() => {
     const types = ["SPK", "JO", "BA", "IS", "SA", "INVOICE"] as const;
     const total = filteredDocuments.length;
-
     return types
       .map((type, index) => {
         const count = filteredDocuments.filter((d) => d.type === type).length;
@@ -183,17 +188,29 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
       onTimeTrend: currentMetrics.onTime - previousMetrics.onTime,
       documentCountTrend: currentPeriodDocs.length - previousPeriodDocs.length,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredDocuments, data.documents, data.ranges, timeRange]);
 
   const updateFilters = useCallback((newFilters: Partial<typeof filters>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   }, []);
 
+  // Helper function to download files
+  const downloadFile = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  };
+
+  // Main export function
   const exportData = useCallback(
     async (format: "csv" | "excel" | "pdf") => {
       try {
-        // Prepare export data
         const exportData = filteredDocuments.map((doc) => ({
           Title: doc.title,
           Type: doc.type,
@@ -209,7 +226,7 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
           "Days Late": doc.daysLate || 0,
         }));
 
-        const fileName = `analytics-asphere-apps${timeRange}-${new Date().toISOString().split("T")[0]}`;
+        const fileName = `analytics-${companyInfo.name.replace(/\s+/g, "-").toLowerCase()}-${timeRange}-${new Date().toISOString().split("T")[0]}`;
 
         switch (format) {
           case "csv":
@@ -225,24 +242,20 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
             throw new Error(`Unsupported export format: ${format}`);
         }
 
-        // Show success notification
         console.log(`Successfully exported data as ${format.toUpperCase()}`);
       } catch (error) {
         console.error(`Export failed:`, error);
-        // Handle error (show notification, etc.)
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filteredDocuments, timeRange]
+    [filteredDocuments, timeRange, companyInfo.name]
   );
 
-  // CSV Export Function
+  // CSV Export Function with Header
   const exportCSV = async (data: any[], fileName: string) => {
     if (!data.length) {
       throw new Error("No data to export");
     }
 
-    // Escape CSV values to handle commas, quotes, and newlines
     const escapeCSVValue = (value: any): string => {
       const stringValue = String(value);
       if (
@@ -256,45 +269,103 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
     };
 
     const headers = Object.keys(data[0]);
+
+    // Create CSV content with company header
     const csvContent = [
+      `${companyInfo.name}`,
+      `${companyInfo.subtitle}`,
+      `${companyInfo.address}`,
+      "",
+      `Tracking Documents Analytics Report - Generated: ${new Date().toLocaleString()}`,
+      `Time Range: ${timeRange} | Total Records: ${data.length}`,
+      "",
       headers.join(","),
       ...data.map((row) =>
         headers.map((header) => escapeCSVValue(row[header])).join(",")
       ),
+      "",
+      "",
+      "Penanggung Jawab:",
+      "",
+      "",
+      "",
+      "________________________",
     ].join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
     downloadFile(blob, `${fileName}.csv`);
   };
 
-  // Excel Export Function
+  // Excel Export Function with Header
   const exportExcel = async (data: any[], fileName: string) => {
     if (!data.length) {
       throw new Error("No data to export");
     }
 
-    // Using SheetJS library for Excel export
     try {
       const XLSX = await import("xlsx");
-
-      // Create workbook and worksheet
       const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(data);
+
+      // Create header data
+      const headerData = [
+        [companyInfo.name],
+        [companyInfo.subtitle],
+        [companyInfo.address],
+        [],
+        [
+          `Tracking Documents Analytics Report - Generated: ${new Date().toLocaleString()}`,
+        ],
+        [`Time Range: ${timeRange} | Total Records: ${data.length}`],
+        [],
+      ];
+
+      // Create worksheet with header
+      const worksheet = XLSX.utils.aoa_to_sheet(headerData);
+
+      // Add data starting from row 8
+      XLSX.utils.sheet_add_json(worksheet, data, { origin: "A8" });
+
+      // Add footer (responsible person section)
+      const footerStartRow = 8 + data.length + 2;
+      XLSX.utils.sheet_add_aoa(
+        worksheet,
+        [
+          [],
+          ["", "", "", "", "", "", "", "", "", "Penanggung Jawab:"],
+          [""],
+          [""],
+          [""],
+          ["", "", "", "", "", "", "", "", "", "________________________"],
+        ],
+        { origin: `A${footerStartRow}` }
+      );
 
       // Auto-size columns
       const colWidths = Object.keys(data[0]).map((key) => {
         const maxLength = Math.max(
           key.length,
-          ...data.map((row) => String(row[key]).length)
+          ...data.map((row) => String(row[key]).length),
+          companyInfo.name.length
         );
         return { wch: Math.min(maxLength + 2, 50) };
       });
       worksheet["!cols"] = colWidths;
 
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Analytics Data");
+      // Style the header
+      const headerRange = XLSX.utils.decode_range("A1:A6");
+      for (let row = headerRange.s.r; row <= headerRange.e.r; row++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: 0 });
+        if (!worksheet[cellAddress]) continue;
+        worksheet[cellAddress].s = {
+          font: { bold: true, size: row === 0 ? 14 : 12 },
+          alignment: { horizontal: "left" },
+        };
+      }
 
-      // Generate Excel file
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Analytics Report");
+
       const excelBuffer = XLSX.write(workbook, {
         bookType: "xlsx",
         type: "array",
@@ -313,34 +384,90 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
     }
   };
 
-  // PDF Export Function
+  // Helper function to load image as base64
+  const loadImageAsBase64 = (src: string): Promise<string> => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/jpg"));
+      };
+      img.onerror = () => resolve(""); // Return empty if logo fails to load
+      img.src = src;
+    });
+  };
+
+  // PDF Export Function with Header and Footer
   const exportPDF = async (data: any[], fileName: string) => {
     if (!data.length) {
       throw new Error("No data to export");
     }
-
     try {
-      // Using jsPDF for PDF generation
       const { jsPDF } = await import("jspdf");
       const { default: autoTable } = await import("jspdf-autotable");
-
       const doc = new jsPDF({
         orientation: "landscape",
         unit: "mm",
         format: "a4",
       });
 
-      // Add title
+      // Load company logo
+      let logoBase64 = "";
+      try {
+        logoBase64 = await loadImageAsBase64(companyInfo.logo);
+      } catch (error) {
+        console.warn("Failed to load logo:", error);
+      }
+
+      // Add company logo if available
+      if (logoBase64) {
+        try {
+          doc.addImage(logoBase64, "JPG", 14, 10, 25, 25); // x, y, width, height
+        } catch (error) {
+          console.warn("Failed to add logo to PDF:", error);
+        }
+      }
+
+      // Add company header (positioned next to logo)
+      const textStartX = logoBase64 ? 45 : 14; // Start text after logo or at margin
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      doc.text("Analytics Report", 14, 15);
+      doc.text(companyInfo.name, textStartX, 20);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.text(companyInfo.subtitle, textStartX, 28);
+      doc.setFontSize(10);
 
-      // Add metadata
+      // Split address into multiple lines if too long
+      const addressLines = doc.splitTextToSize(companyInfo.address, 200);
+      let yPosition = 35;
+      addressLines.forEach((line: string) => {
+        doc.text(line, textStartX, yPosition);
+        yPosition += 5;
+      });
+
+      // Add separator line
+      yPosition = Math.max(yPosition, 40); // Ensure minimum space for logo
+      doc.setLineWidth(0.5);
+      doc.line(14, yPosition + 2, 283, yPosition + 2);
+
+      // Add report metadata
+      yPosition += 10;
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tracking Documents Analytics Report", 14, yPosition);
+      yPosition += 8;
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 25);
-      doc.text(`Time Range: ${timeRange}`, 14, 30);
-      doc.text(`Total Records: ${data.length}`, 14, 35);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, yPosition);
+      doc.text(`Time Range: ${timeRange}`, 14, yPosition + 5);
+      doc.text(`Total Records: ${data.length}`, 14, yPosition + 10);
 
       // Prepare table data
       const headers = Object.keys(data[0]);
@@ -352,44 +479,63 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
       autoTable(doc, {
         head: [headers],
         body: tableData,
-        startY: 45,
+        startY: yPosition + 20,
         styles: {
           fontSize: 8,
           cellPadding: 2,
         },
         headStyles: {
-          fillColor: [71, 85, 105], // Slate color
+          fillColor: [71, 85, 105],
           textColor: 255,
           fontStyle: "bold",
         },
         alternateRowStyles: {
-          fillColor: [248, 250, 252], // Light gray
+          fillColor: [248, 250, 252],
         },
         columnStyles: {
-          0: { cellWidth: 25 }, // Title
-          1: { cellWidth: 20 }, // Type
-          2: { cellWidth: 20 }, // Flow
-          3: { cellWidth: 20 }, // Status
-          4: { cellWidth: 25 }, // Client
-          5: { cellWidth: 25 }, // Created At
-          6: { cellWidth: 25 }, // Completed At
-          7: { cellWidth: 20 }, // Processing Time
-          8: { cellWidth: 15 }, // On Time
-          9: { cellWidth: 15 }, // Days Late
+          0: { cellWidth: 40 },
+          1: { cellWidth: 20 },
+          2: { cellWidth: 20 },
+          3: { cellWidth: 20 },
+          4: { cellWidth: 40 },
+          5: { cellWidth: 30 },
+          6: { cellWidth: 30 },
+          7: { cellWidth: 20 },
+          8: { cellWidth: 15 },
+          9: { cellWidth: 15 },
         },
         margin: { left: 14, right: 14 },
         didDrawPage: (data: any) => {
-          // Add page numbers
+          const pageWidth = doc.internal.pageSize.width;
+          const pageHeight = doc.internal.pageSize.height;
+
+          // Add page numbers (pojok kanan bawah)
           doc.setFontSize(8);
+          doc.setFont("helvetica", "normal");
           doc.text(
             `Page ${data.pageNumber}`,
-            doc.internal.pageSize.width - 20,
-            doc.internal.pageSize.height - 10
+            pageWidth - 30, // Lebih presisi dari kanan
+            pageHeight - 15 // Lebih presisi dari bawah
           );
+
+          // Add footer (responsible person) hanya pada halaman terakhir
+          if (data.pageNumber === doc.getNumberOfPages()) {
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+
+            // Posisi footer yang benar (dari kanan dan bawah)
+            const footerX = pageWidth - 80;
+            const footerBaseY = pageHeight - 60; // Mulai dari 60mm dari bawah
+
+            // Teks "Penanggung Jawab" dulu
+            doc.text("Penanggung Jawab:", footerX, footerBaseY);
+
+            // Garis tanda tangan di bawah teks (Y lebih besar = lebih bawah)
+            doc.text("________________________", footerX, footerBaseY + 25);
+          }
         },
       });
 
-      // Save PDF
       doc.save(`${fileName}.pdf`);
     } catch (error) {
       console.error("PDF export failed:", error);
@@ -397,177 +543,7 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
         "Failed to export PDF file. Please try CSV format instead."
       );
     }
-  }; // Helper function to download files
-  const downloadFile = (blob: Blob, fileName: string) => {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.style.display = "none";
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    // Clean up the URL object
-    setTimeout(() => URL.revokeObjectURL(url), 100);
   };
-
-  // Alternative implementation using native browser APIs only (no external libraries)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const exportDataNative = useCallback(
-    async (format: "csv" | "excel" | "pdf") => {
-      const exportData = filteredDocuments.map((doc) => ({
-        Title: doc.title,
-        Type: doc.type,
-        Flow: doc.flow,
-        Status: doc.status,
-        Client: doc.client.name,
-        "Created At": new Date(doc.createdAt).toLocaleDateString(),
-        "Completed At": doc.completedAt
-          ? new Date(doc.completedAt).toLocaleDateString()
-          : "N/A",
-        "Processing Time (days)": doc.processingTime || "N/A",
-        "On Time": doc.isOnTime ? "Yes" : "No",
-        "Days Late": doc.daysLate || 0,
-      }));
-
-      const fileName = `analytics-asphere-apps-${timeRange}-${new Date().toISOString().split("T")[0]}`;
-
-      if (format === "csv") {
-        // Enhanced CSV export with proper escaping
-        const escapeCSV = (value: any) => {
-          const str = String(value);
-          if (
-            str.includes(",") ||
-            str.includes('"') ||
-            str.includes("\n") ||
-            str.includes("\r")
-          ) {
-            return `"${str.replace(/"/g, '""')}"`;
-          }
-          return str;
-        };
-
-        const headers = Object.keys(exportData[0]);
-        const csvContent = [
-          headers.join(","),
-          ...exportData.map((row) =>
-            headers
-              .map((header) => escapeCSV(row[header as keyof typeof row]))
-              .join(",")
-          ),
-        ].join("\n");
-
-        const blob = new Blob(["\uFEFF" + csvContent], {
-          type: "text/csv;charset=utf-8;",
-        });
-        downloadFile(blob, `${fileName}.csv`);
-      } else if (format === "excel") {
-        // Simple Excel format using HTML table (opens in Excel)
-        const htmlTable = `
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <style>
-                table { border-collapse: collapse; width: 100%; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; font-weight: bold; }
-              </style>
-            </head>
-            <body>
-              <h2>Asphere Apps Analytics Report</h2>
-              <p>Generated: ${new Date().toLocaleString()}</p>
-              <table>
-                <thead>
-                  <tr>${Object.keys(exportData[0])
-                    .map((key) => `<th>${key}</th>`)
-                    .join("")}</tr>
-                </thead>
-                <tbody>
-                  ${exportData
-                    .map(
-                      (row) =>
-                        `<tr>${Object.values(row)
-                          .map((value) => `<td>${value}</td>`)
-                          .join("")}</tr>`
-                    )
-                    .join("")}
-                </tbody>
-              </table>
-            </body>
-          </html>
-        `;
-
-        const blob = new Blob([htmlTable], {
-          type: "application/vnd.ms-excel;charset=utf-8;",
-        });
-        downloadFile(blob, `${fileName}.xls`);
-      } else if (format === "pdf") {
-        // Simple HTML to PDF approach (user can print to PDF)
-        const htmlContent = `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <title>Asphere Apps Analytics Report</title>
-              <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                h1 { color: #333; }
-                .meta { margin-bottom: 20px; color: #666; }
-                table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
-                th { background-color: #f8f9fa; font-weight: bold; }
-                tr:nth-child(even) { background-color: #f8f9fa; }
-                @media print {
-                  body { margin: 0; }
-                  .no-print { display: none; }
-                }
-              </style>
-            </head>
-            <body>
-              <h1>Analytics Report</h1>
-              <div class="meta">
-                <p>Generated: ${new Date().toLocaleString()}</p>
-                <p>Time Range: ${timeRange}</p>
-                <p>Total Records: ${exportData.length}</p>
-              </div>
-              <div class="no-print">
-                <p><strong>Instructions:</strong> Use Ctrl+P (Windows) or Cmd+P (Mac) to print this page as PDF</p>
-              </div>
-              <table>
-                <thead>
-                  <tr>${Object.keys(exportData[0])
-                    .map((key) => `<th>${key}</th>`)
-                    .join("")}</tr>
-                </thead>
-                <tbody>
-                  ${exportData
-                    .map(
-                      (row) =>
-                        `<tr>${Object.values(row)
-                          .map((value) => `<td>${value}</td>`)
-                          .join("")}</tr>`
-                    )
-                    .join("")}
-                </tbody>
-              </table>
-            </body>
-          </html>
-        `;
-
-        // Open in new window for printing
-        const newWindow = window.open("", "_blank");
-        if (newWindow) {
-          newWindow.document.write(htmlContent);
-          newWindow.document.close();
-          newWindow.focus();
-          setTimeout(() => newWindow.print(), 250);
-        }
-      }
-    },
-    [filteredDocuments, timeRange]
-  );
 
   return {
     timeRange,
@@ -582,5 +558,6 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
     documentTypeData,
     performanceTrends,
     exportData,
+    companyInfo,
   };
 };

@@ -4,12 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { sendEmailServerAction } from "@/lib/server/actions/send-mail.action";
 import { createTeamInvitation } from "@/lib/server/email/invitation-utils";
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // POST invite member to team
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -19,7 +19,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const teamId = params.id;
+  const teamId = (await params).id;
   const { email } = await request.json();
 
   if (!email) {

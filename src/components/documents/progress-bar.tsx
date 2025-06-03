@@ -2,10 +2,15 @@
 "use client";
 import { useEffect, useState } from "react";
 import { DocumentStatus } from "@/generated/prisma";
-import { DocumentWithRelations } from "./document-table";
 
+// Update interface to match the actual document type from DocumentDetailProps
 interface DocumentProgressBarProps {
-  document: DocumentWithRelations | null;
+  document: {
+    id: string;
+    startTrackAt: Date;
+    endTrackAt: Date;
+    status: DocumentStatus;
+  } | null;
   status: DocumentStatus;
 }
 

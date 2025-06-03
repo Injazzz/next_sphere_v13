@@ -4,7 +4,7 @@ import ResetPasswordStatus from "@/components/auth/reset-password-status";
 import ReturnButton from "@/components/ui/return-button";
 
 interface PageProps {
-  searchParams: { token: string; error?: string; reset?: string };
+  searchParams: Promise<{ token: string; error?: string; reset?: string }>;
 }
 
 const Page = async ({ searchParams }: PageProps) => {

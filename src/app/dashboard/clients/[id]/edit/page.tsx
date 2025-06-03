@@ -6,7 +6,7 @@ import { EditClientForm } from "@/components/client/edit-client-form";
 export default async function EditClientPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await auth.api.getSession({
     headers: await headers(),

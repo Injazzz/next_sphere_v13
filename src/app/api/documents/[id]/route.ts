@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
 import { calculateServerDocumentStatus } from "@/lib/server-utils";
 
@@ -30,8 +30,8 @@ async function updateDocumentStatus(documentId: string) {
 
 // GET single document
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -120,8 +120,8 @@ export async function GET(
 
 // PATCH update document
 export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -182,8 +182,8 @@ export async function PATCH(
 }
 // DELETE document
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({
     headers: await headers(),

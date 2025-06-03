@@ -9,8 +9,8 @@ export default async function JoinTeamPage({
   params,
   searchParams,
 }: {
-  params: { id: string };
-  searchParams: { token?: string };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ token?: string }>;
 }) {
   const session = await auth.api.getSession({
     headers: await headers(),

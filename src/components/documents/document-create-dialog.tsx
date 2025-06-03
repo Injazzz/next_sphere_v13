@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -17,11 +16,23 @@ import { Plus } from "lucide-react";
 
 interface DocumentCreateDialogProps {
   onSuccess?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
 }
 
-export function DocumentCreateDialog({ onSuccess }: DocumentCreateDialogProps) {
-  const [open, setOpen] = useState(false);
+export function DocumentCreateDialog({
+  onSuccess,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
+}: DocumentCreateDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const router = useRouter();
+
+  // Use controlled open state if provided, otherwise use internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
 
   const handleSuccess = () => {
     setOpen(false);
@@ -32,12 +43,14 @@ export function DocumentCreateDialog({ onSuccess }: DocumentCreateDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className='h-4 w-4' />
-          New Document
-        </Button>
-      </DialogTrigger>
+      {showTrigger && (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className='h-4 w-4' />
+            New Document
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className='sm:max-w-3xl'>
         <DialogHeader>
           <DialogTitle>Create New Document</DialogTitle>

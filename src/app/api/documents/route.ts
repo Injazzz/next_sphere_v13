@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { sendEmailServerAction } from "@/lib/server/actions/send-mail.action";
 import {
   DocumentFlow,
@@ -18,7 +18,7 @@ const calculateRemainingTime = (endTrackAt: Date): number => {
 };
 
 // GET all documents (with filtering, sorting, and pagination)
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -198,7 +198,7 @@ export async function GET(request: Request) {
 }
 
 // POST create new document
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });

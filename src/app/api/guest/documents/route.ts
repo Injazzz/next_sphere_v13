@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { verifyGuestSession } from "@/lib/auth-guest";
 import { prisma } from "@/lib/prisma";
 import { calculateServerDocumentStatus } from "@/lib/server-utils";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const client = await verifyGuestSession();
     if (!client) {

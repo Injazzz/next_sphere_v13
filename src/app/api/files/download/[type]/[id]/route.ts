@@ -3,7 +3,7 @@ import { verifyGuestSession } from "@/lib/auth-guest";
 import { prisma } from "@/lib/prisma";
 import { decryptFile } from "@/lib/file-encryption";
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import path from "path";
 
@@ -139,8 +139,8 @@ function getContentType(filename: string): string {
 }
 
 export async function GET(
-  request: Request,
-  { params }: { params: { type: string; id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ type: string; id: string }> }
 ) {
   try {
     // Get authenticated entity

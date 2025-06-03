@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { verifyGuestSession } from "@/lib/auth-guest";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import * as fs from "fs";
 import path from "path";
 
@@ -83,8 +83,8 @@ async function checkFileAccess(
 }
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { fileId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const { searchParams } = new URL(request.url);

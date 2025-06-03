@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -31,9 +30,25 @@ const formSchema = z.object({
   }),
 });
 
-export function CreateTeamDialog() {
-  const [open, setOpen] = useState(false);
+interface CreateTeamDialogProps {
+  onSuccess?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
+}
+
+export function CreateTeamDialog({
+  onSuccess,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
+}: CreateTeamDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Use controlled open state if provided, otherwise use internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,8 +74,9 @@ export function CreateTeamDialog() {
       }
 
       toast.success("Team created successfully");
-
+      form.reset();
       setOpen(false);
+      onSuccess?.();
       window.location.reload(); // Refresh to show the new team
     } catch (error: any) {
       toast.error(error.message);
@@ -71,15 +87,17 @@ export function CreateTeamDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <button
-          type='button'
-          className='w-full max-w-md h-42 bg-green-900/35 rounded-xl border flex flex-col gap-3 justify-center items-center'
-        >
-          <Plus className='w-12 h-12' />
-          <span>Start to create team</span>
-        </button>
-      </DialogTrigger>
+      {showTrigger && (
+        <DialogTrigger asChild>
+          <button
+            type='button'
+            className='w-full max-w-md h-42 bg-green-900/35 rounded-xl border flex flex-col gap-3 justify-center items-center'
+          >
+            <Plus className='w-12 h-12' />
+            <span>Start to create team</span>
+          </button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create a new team</DialogTitle>

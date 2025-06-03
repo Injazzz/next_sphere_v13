@@ -2,7 +2,7 @@ import ReturnButton from "@/components/ui/return-button";
 import ForgotPasswordForm from "@/components/auth/forgot-password-form";
 
 interface PageProps {
-  searchParams: { sent?: string };
+  searchParams: Promise<{ sent?: string }>;
 }
 
 const Page = async ({ searchParams }: PageProps) => {

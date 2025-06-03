@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { verifyGuestSession } from "@/lib/auth-guest";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import { encryptFile } from "@/lib/file-encryption";
 import path from "path";
@@ -96,7 +96,7 @@ function validateFiles(files: File[]) {
   return errors;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // Get authenticated entity
     const auth = await getAuthenticatedEntity();

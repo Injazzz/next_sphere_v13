@@ -6,7 +6,7 @@ import { ClientDetail } from "@/components/client/client-detail";
 export default async function ClientPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await auth.api.getSession({
     headers: await headers(),

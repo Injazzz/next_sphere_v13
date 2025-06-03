@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -58,7 +56,6 @@ const formSchema = z.object({
       message: "Company name must be at least 2 characters.",
     })
     .transform((val) => val.toUpperCase()),
-
   companyEmail: z.string().email({
     message: "Please enter a valid company email.",
   }),
@@ -66,10 +63,26 @@ const formSchema = z.object({
   gender: z.enum(["Male", "Female"]),
 });
 
-export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
-  const [open, setOpen] = useState(false);
+interface CreateClientDialogProps {
+  onSuccess?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
+}
+
+export function CreateClientDialog({
+  onSuccess,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
+}: CreateClientDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState("");
+
+  // Use controlled open state if provided, otherwise use internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -88,7 +101,6 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
   const formatPhoneNumber = (value: string) => {
     // Remove all non-digit characters
     const cleaned = value.replace(/\D/g, "");
-
     // Format with dashes every 4 digits
     const match = cleaned.match(/^(\d{0,4})(\d{0,4})(\d{0,4})(\d{0,4})$/);
     if (match) {
@@ -101,7 +113,6 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
     setFormattedPhone(formatted);
-
     // Update form value with raw digits (without dashes)
     const rawValue = formatted.replace(/\D/g, "");
     form.setValue("phone", rawValue, { shouldValidate: true });
@@ -127,7 +138,7 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
       form.reset();
       setFormattedPhone(""); // Reset formatted phone
       setOpen(false);
-      onSuccess();
+      onSuccess?.();
     } catch (error) {
       toast.error("Failed to create client");
     } finally {
@@ -137,12 +148,14 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus />
-          <span className='hidden lg:block'>Add new client</span>
-        </Button>
-      </DialogTrigger>
+      {showTrigger && (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus />
+            <span className='hidden lg:block'>Add new client</span>
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className='max-w-xl w-full md:max-w-2xl rounded-2xl'>
         <DialogHeader>
           <DialogTitle>Create new client</DialogTitle>
@@ -273,7 +286,6 @@ export function CreateClientDialog({ onSuccess }: { onSuccess: () => void }) {
                 />
               </div>
             </div>
-
             <DialogFooter>
               <Button type='submit' disabled={loading} className='mt-5'>
                 {loading ? <Loader /> : "Create Client"}

@@ -1,4 +1,5 @@
 import transporter from "@/lib/mail";
+import { NextRequest } from "next/server";
 
 // Helper functions
 function getTypeLabel(
@@ -37,23 +38,7 @@ function getTypeColor(
   return colors[type] || "feedback";
 }
 
-export async function POST(request: {
-  json: () =>
-    | PromiseLike<{
-        name: string;
-        email: string;
-        type: string;
-        subject: string;
-        message: string;
-      }>
-    | {
-        name: string;
-        email: string;
-        type: string;
-        subject: string;
-        message: string;
-      };
-}) {
+export async function POST(request: NextRequest) {
   try {
     const { name, email, type, subject, message } = await request.json();
 
@@ -261,7 +246,6 @@ export async function POST(request: {
     });
   } catch (error) {
     console.error("Error sending feedback email:", error);
-
     return Response.json(
       {
         error:

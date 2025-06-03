@@ -2,13 +2,15 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // GET single client
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export const GET = async (
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) => {
+  const { id } = await params; // Await params karena sekarang Promise
+
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -17,11 +19,8 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const param = await params;
-  const userId = param.id;
-
   const client = await prisma.client.findUnique({
-    where: { id: userId },
+    where: { id }, // Gunakan id yang sudah di-destructure
     include: {
       user: {
         select: {
@@ -37,13 +36,15 @@ export async function GET(
   }
 
   return NextResponse.json(client);
-}
+};
 
 // PATCH update client
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export const PATCH = async (
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) => {
+  const { id } = await params; // Await params
+
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -54,12 +55,9 @@ export async function PATCH(
 
   const body = await request.json();
 
-  const param = await params;
-  const userId = param.id;
-
   // Check if client exists and belongs to user
   const existingClient = await prisma.client.findUnique({
-    where: { id: userId },
+    where: { id }, // Gunakan id yang sudah di-destructure
   });
 
   if (!existingClient) {
@@ -75,10 +73,9 @@ export async function PATCH(
 
   try {
     const client = await prisma.client.update({
-      where: { id: userId },
+      where: { id }, // Gunakan id yang sudah di-destructure
       data: body,
     });
-
     return NextResponse.json(client);
   } catch (error) {
     return NextResponse.json(
@@ -86,13 +83,15 @@ export async function PATCH(
       { status: 400 }
     );
   }
-}
+};
 
 // DELETE client
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export const DELETE = async (
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) => {
+  const { id } = await params; // Await params
+
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -101,12 +100,9 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const param = await params;
-  const userId = param.id;
-
   // Check if client exists and belongs to user
   const existingClient = await prisma.client.findUnique({
-    where: { id: userId },
+    where: { id }, // Gunakan id yang sudah di-destructure
   });
 
   if (!existingClient) {
@@ -122,12 +118,11 @@ export async function DELETE(
 
   try {
     await prisma.client.delete({
-      where: { id: userId },
+      where: { id }, // Gunakan id yang sudah di-destructure
     });
-
     return NextResponse.json(
       { message: "Client deleted successfully" },
-      { status: 200 }
+      { status: 204 }
     );
   } catch (error) {
     return NextResponse.json(
@@ -135,4 +130,4 @@ export async function DELETE(
       { status: 400 }
     );
   }
-}
+};

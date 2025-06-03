@@ -4,7 +4,7 @@ import ReturnButton from "@/components/ui/return-button";
 import VerifyEmailStatus from "@/components/auth/verify-email-status";
 
 interface PageProps {
-  searchParams: { error?: string; resent?: string };
+  searchParams: Promise<{ error?: string; resent?: string }>;
 }
 
 const Page = async ({ searchParams }: PageProps) => {

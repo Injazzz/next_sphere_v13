@@ -6,7 +6,7 @@ import { DocumentDetail } from "@/components/documents/document-detail";
 export default async function DocumentPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await auth.api.getSession({
     headers: await headers(),

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default async function DocumentDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const docId = (await params).id;
   return (

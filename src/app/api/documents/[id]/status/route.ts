@@ -5,11 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { calculateServerDocumentStatus } from "@/lib/server-utils";
 import { sendEmailServerAction } from "@/lib/server/actions/send-mail.action";
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -193,8 +193,8 @@ export async function POST(
 }
 
 export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({
     headers: await headers(),

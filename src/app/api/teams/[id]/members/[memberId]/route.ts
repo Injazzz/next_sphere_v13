@@ -3,12 +3,12 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmailServerAction } from "@/lib/server/actions/send-mail.action";
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // PATCH update member role (for leadership transfer)
 export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string; memberId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -118,8 +118,8 @@ export async function PATCH(
 
 // DELETE remove member from team
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string; memberId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -172,7 +172,7 @@ export async function DELETE(
 
     await prisma.teamMember.delete({
       where: {
-        id: params.memberId,
+        id: memberId,
       },
     });
 

@@ -78,7 +78,7 @@ export function DocumentTable() {
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className='h-24 text-center'
+                  className='h-[500px] text-center'
                 >
                   <div className='flex items-center justify-center space-x-2'>
                     <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900'></div>

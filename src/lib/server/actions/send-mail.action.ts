@@ -93,7 +93,7 @@ export async function sendEmailServerAction({
             padding: 20px 30px;
             text-align: center;
             font-size: 14px;
-            color: #999;
+            color: #4a6cf7;
             border-top: 1px solid #eee;
           }
           .help-text {

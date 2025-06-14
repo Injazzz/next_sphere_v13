@@ -190,3 +190,22 @@ export function calculateProgress(start: Date, end: Date): number {
   const elapsed = currentTime - startTime;
   return Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
 }
+
+export const formatDate = (
+  date: Date | string,
+  options?: Intl.DateTimeFormatOptions
+) => {
+  const d = typeof date === "string" ? new Date(date) : date;
+
+  // Gunakan format yang sama untuk server dan client
+  if (options) {
+    return new Intl.DateTimeFormat("en-US", options).format(d);
+  }
+
+  // Format default yang konsisten (YYYY-MM-DD)
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};

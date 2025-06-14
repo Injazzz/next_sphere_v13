@@ -39,6 +39,7 @@ export const FilterPanel = ({
   onFiltersChange,
   clients,
 }: FilterPanelProps) => {
+  // Hitung filter aktif (yang bukan "all")
   const activeFiltersCount = Object.values(filters).filter(
     (v) => v !== "all"
   ).length;
@@ -71,7 +72,7 @@ export const FilterPanel = ({
             <span>Filters</span>
             {activeFiltersCount > 0 && (
               <Button
-                variant='destructive'
+                variant='ghost'
                 size='sm'
                 onClick={clearAllFilters}
                 className='text-primary h-8 px-2'
@@ -82,6 +83,7 @@ export const FilterPanel = ({
           </DialogTitle>
         </DialogHeader>
         <div className='grid md:grid-cols-2 gap-4 py-4 px-4'>
+          {/* Document Type Filter */}
           <div className='space-y-4'>
             <label className='text-sm font-medium'>Document Type</label>
             <Select
@@ -105,6 +107,7 @@ export const FilterPanel = ({
             </Select>
           </div>
 
+          {/* Flow Filter */}
           <div className='space-y-4'>
             <label className='text-sm font-medium'>Flow</label>
             <Select
@@ -122,6 +125,7 @@ export const FilterPanel = ({
             </Select>
           </div>
 
+          {/* Status Filter */}
           <div className='space-y-4'>
             <label className='text-sm font-medium'>Status</label>
             <Select
@@ -142,6 +146,7 @@ export const FilterPanel = ({
             </Select>
           </div>
 
+          {/* Client Filter */}
           <div className='space-y-4'>
             <label className='text-sm font-medium'>Client</label>
             <Select

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
+
 import * as React from "react";
 import {
   Area,
@@ -12,6 +13,7 @@ import {
   Cell,
   Line,
   LineChart,
+  ResponsiveContainer,
 } from "recharts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -56,13 +58,13 @@ import {
   Zap,
   Target,
 } from "lucide-react";
-
 import { AnalyticsData } from "@/types/analytics";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { EmptyState } from "./empty-state";
-import { ErrorBoundary } from "./error-boundary";
 import { FilterPanel } from "./filter-panel";
 import { ExportButton } from "./export-button";
+import { ErrorBoundary } from "./error-boundary";
+import { formatDate } from "@/lib/utils";
 
 interface AnalyticsDashboardProps {
   data: AnalyticsData;
@@ -93,13 +95,69 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+const TimeRangeSelector = ({
+  timeRange,
+  setTimeRange,
+}: {
+  timeRange: string;
+  setTimeRange: (value: string) => void;
+}) => (
+  <>
+    <ToggleGroup
+      type='single'
+      value={timeRange}
+      onValueChange={setTimeRange}
+      variant='outline'
+      className='hidden *:data-[slot=toggle-group-item]:!px-4 @[767px]/card:flex'
+    >
+      <ToggleGroupItem value='7d'>7 days</ToggleGroupItem>
+      <ToggleGroupItem value='30d'>30 days</ToggleGroupItem>
+      <ToggleGroupItem value='90d'>3 months</ToggleGroupItem>
+      <ToggleGroupItem value='180d'>6 months</ToggleGroupItem>
+      <ToggleGroupItem value='1y'>1 year</ToggleGroupItem>
+      <ToggleGroupItem value='3y'>3 years</ToggleGroupItem>
+    </ToggleGroup>
+    <Select value={timeRange} onValueChange={setTimeRange}>
+      <SelectTrigger
+        className='flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden'
+        size='sm'
+        aria-label='Select time range'
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className='rounded-xl'>
+        <SelectItem value='7d'>7 days</SelectItem>
+        <SelectItem value='30d'>30 days</SelectItem>
+        <SelectItem value='90d'>3 months</SelectItem>
+        <SelectItem value='180d'>6 months</SelectItem>
+        <SelectItem value='1y'>1 year</SelectItem>
+        <SelectItem value='3y'>3 years</SelectItem>
+      </SelectContent>
+    </Select>
+  </>
+);
+
+const TrendIndicator = ({ value, label }: { value: number; label: string }) => (
+  <div className='flex items-center gap-1 text-xs'>
+    {value > 0 ? (
+      <ArrowUp className='h-3 w-3 text-green-500' />
+    ) : value < 0 ? (
+      <ArrowDown className='h-3 w-3 text-red-500' />
+    ) : null}
+    <span
+      className={`${value > 0 ? "text-green-500" : value < 0 ? "text-red-500" : "text-muted-foreground"}`}
+    >
+      {Math.abs(value).toFixed(1)}% {label}
+    </span>
+  </div>
+);
+
 export function AnalyticsDashboard({
   data,
   isLeader,
   userId,
 }: AnalyticsDashboardProps) {
   const isMobile = useIsMobile();
-
   const {
     timeRange,
     setTimeRange,
@@ -113,64 +171,8 @@ export function AnalyticsDashboard({
     documentTypeData,
     performanceTrends,
     exportData,
+    companyInfo,
   } = useAnalytics(data, isMobile ? "7d" : "30d");
-
-  const TimeRangeSelector = () => (
-    <>
-      <ToggleGroup
-        type='single'
-        value={timeRange}
-        onValueChange={setTimeRange}
-        variant='outline'
-        className='hidden *:data-[slot=toggle-group-item]:!px-4 @[767px]/card:flex'
-      >
-        <ToggleGroupItem value='7d'>7 days</ToggleGroupItem>
-        <ToggleGroupItem value='30d'>30 days</ToggleGroupItem>
-        <ToggleGroupItem value='90d'>3 months</ToggleGroupItem>
-        <ToggleGroupItem value='180d'>6 months</ToggleGroupItem>
-        <ToggleGroupItem value='1y'>1 year</ToggleGroupItem>
-        <ToggleGroupItem value='3y'>3 years</ToggleGroupItem>
-      </ToggleGroup>
-      <Select value={timeRange} onValueChange={setTimeRange}>
-        <SelectTrigger
-          className='flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden'
-          size='sm'
-          aria-label='Select time range'
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className='rounded-xl'>
-          <SelectItem value='7d'>7 days</SelectItem>
-          <SelectItem value='30d'>30 days</SelectItem>
-          <SelectItem value='90d'>3 months</SelectItem>
-          <SelectItem value='180d'>6 months</SelectItem>
-          <SelectItem value='1y'>1 year</SelectItem>
-          <SelectItem value='3y'>3 years</SelectItem>
-        </SelectContent>
-      </Select>
-    </>
-  );
-
-  const TrendIndicator = ({
-    value,
-    label,
-  }: {
-    value: number;
-    label: string;
-  }) => (
-    <div className='flex items-center gap-1 text-xs'>
-      {value > 0 ? (
-        <ArrowUp className='h-3 w-3 text-green-500' />
-      ) : value < 0 ? (
-        <ArrowDown className='h-3 w-3 text-red-500' />
-      ) : null}
-      <span
-        className={`${value > 0 ? "text-green-500" : value < 0 ? "text-red-500" : "text-muted-foreground"}`}
-      >
-        {Math.abs(value).toFixed(1)}% {label}
-      </span>
-    </div>
-  );
 
   if (
     filteredDocuments.length === 0 &&
@@ -181,19 +183,21 @@ export function AnalyticsDashboard({
         title='No Data Available'
         description='There are no documents in the selected time period. Try selecting a different time range or create some documents to see analytics.'
         actionLabel='Create Document'
-        onAction={() => (window.location.href = "/documents/create")}
+        onAction={() => (window.location.href = "/documents")}
       />
     );
   }
 
-  // Lanjutan dari AnalyticsDashboard component
   return (
     <ErrorBoundary>
       <div className='space-y-6'>
         {/* Controls */}
         <div className='flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center'>
           <div className='flex flex-col sm:flex-row gap-4 items-start sm:items-center'>
-            <TimeRangeSelector />
+            <TimeRangeSelector
+              timeRange={timeRange}
+              setTimeRange={setTimeRange}
+            />
             <FilterPanel
               filters={filters}
               onFiltersChange={updateFilters}
@@ -217,7 +221,7 @@ export function AnalyticsDashboard({
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>
-                {metrics.totalDocuments.toLocaleString()}
+                {metrics.totalDocuments.toLocaleString("en-US")}
               </div>
               <TrendIndicator
                 value={performanceTrends.documentCountTrend}
@@ -320,97 +324,99 @@ export function AnalyticsDashboard({
                 config={chartConfig}
                 className='aspect-auto h-[250px] w-full'
               >
-                {selectedMetric === "documents" ? (
-                  <AreaChart
-                    accessibilityLayer
-                    data={chartData}
-                    margin={{
-                      left: 12,
-                      right: 12,
-                    }}
-                  >
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey='date'
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      minTickGap={32}
-                      tickFormatter={(value) => {
-                        const date = new Date(value);
-                        return date.toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        });
+                <ResponsiveContainer width='100%' height='100%'>
+                  {selectedMetric === "documents" ? (
+                    <AreaChart
+                      accessibilityLayer
+                      data={chartData}
+                      margin={{
+                        left: 12,
+                        right: 12,
                       }}
-                    />
-                    <YAxis tickLine={false} axisLine={false} />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent indicator='dot' />}
-                    />
-                    <Area
-                      dataKey='documentsIn'
-                      type='natural'
-                      fill='var(--chart-1)'
-                      fillOpacity={0.4}
-                      stroke='var(--chart-1)'
-                      stackId='a'
-                    />
-                    <Area
-                      dataKey='documentsOut'
-                      type='natural'
-                      fill='var(--chart-2)'
-                      fillOpacity={0.4}
-                      stroke='var(--chart-2)'
-                      stackId='a'
-                    />
-                  </AreaChart>
-                ) : (
-                  <LineChart
-                    accessibilityLayer
-                    data={chartData}
-                    margin={{
-                      left: 12,
-                      right: 12,
-                    }}
-                  >
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey='date'
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      minTickGap={32}
-                      tickFormatter={(value) => {
-                        const date = new Date(value);
-                        return date.toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        });
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey='date'
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        minTickGap={32}
+                        tickFormatter={(value) => {
+                          const date = new Date(value);
+                          return formatDate(date, {
+                            month: "short",
+                            day: "numeric",
+                          });
+                        }}
+                      />
+                      <YAxis tickLine={false} axisLine={false} />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator='dot' />}
+                      />
+                      <Area
+                        dataKey='documentsIn'
+                        type='natural'
+                        fill='var(--chart-1)'
+                        fillOpacity={0.4}
+                        stroke='var(--chart-1)'
+                        stackId='a'
+                      />
+                      <Area
+                        dataKey='documentsOut'
+                        type='natural'
+                        fill='var(--chart-2)'
+                        fillOpacity={0.4}
+                        stroke='var(--chart-2)'
+                        stackId='a'
+                      />
+                    </AreaChart>
+                  ) : (
+                    <LineChart
+                      accessibilityLayer
+                      data={chartData}
+                      margin={{
+                        left: 12,
+                        right: 12,
                       }}
-                    />
-                    <YAxis tickLine={false} axisLine={false} />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent />}
-                    />
-                    <Line
-                      dataKey='onTime'
-                      type='monotone'
-                      stroke='var(--chart-2)'
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    <Line
-                      dataKey='overdue'
-                      type='monotone'
-                      stroke='var(--chart-5)'
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                )}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey='date'
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        minTickGap={32}
+                        tickFormatter={(value) => {
+                          const date = new Date(value);
+                          return formatDate(date, {
+                            month: "short",
+                            day: "numeric",
+                          });
+                        }}
+                      />
+                      <YAxis tickLine={false} axisLine={false} />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent />}
+                      />
+                      <Line
+                        dataKey='onTime'
+                        type='monotone'
+                        stroke='var(--chart-2)'
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                      <Line
+                        dataKey='overdue'
+                        type='monotone'
+                        stroke='var(--chart-5)'
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
               </ChartContainer>
             </CardContent>
           </Card>
@@ -428,23 +434,25 @@ export function AnalyticsDashboard({
                 config={chartConfig}
                 className='mx-auto aspect-square max-h-[250px]'
               >
-                <PieChart>
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent hideLabel />}
-                  />
-                  <Pie
-                    data={documentTypeData}
-                    dataKey='count'
-                    nameKey='type'
-                    innerRadius={60}
-                    strokeWidth={5}
-                  >
-                    {documentTypeData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                </PieChart>
+                <ResponsiveContainer width='100%' height='100%'>
+                  <PieChart>
+                    <ChartTooltip
+                      cursor={false}
+                      content={<ChartTooltipContent hideLabel />}
+                    />
+                    <Pie
+                      data={documentTypeData}
+                      dataKey='count'
+                      nameKey='type'
+                      innerRadius={60}
+                      strokeWidth={5}
+                    >
+                      {documentTypeData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
               </ChartContainer>
             </CardContent>
           </Card>
@@ -601,9 +609,7 @@ export function AnalyticsDashboard({
                           {doc.status.replace("_", " ")}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        {new Date(doc.createdAt).toLocaleDateString()}
-                      </TableCell>
+                      <TableCell>{formatDate(doc.createdAt)}</TableCell>
                       <TableCell className='text-right'>
                         <div className='flex flex-col items-end'>
                           <span>
@@ -684,7 +690,7 @@ export function AnalyticsDashboard({
                 <div className='flex justify-between'>
                   <span className='text-sm'>Revenue Impact:</span>
                   <span className='font-semibold'>
-                    ${data.summary.totalRevenue.toLocaleString()}
+                    ${data.summary.totalRevenue.toLocaleString("en-US")}
                   </span>
                 </div>
                 <div className='flex justify-between'>

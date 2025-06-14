@@ -1,4 +1,4 @@
-export interface DocumentWithMetrics {
+export type DocumentWithMetrics = {
   id: string;
   title: string;
   type: "SPK" | "JO" | "BA" | "IS" | "SA" | "INVOICE";
@@ -27,9 +27,9 @@ export interface DocumentWithMetrics {
   daysLate: number;
   processingTime: number | null;
   isOnTime: boolean;
-}
+};
 
-export interface TeamPerformance {
+export type TeamPerformance = {
   user: {
     id: string;
     name: string;
@@ -44,24 +44,31 @@ export interface TeamPerformance {
   onTimeRate: number;
   averageProcessingTime: number;
   trend: "up" | "down" | "stable";
-}
+};
 
-export interface Client {
+export type Client = {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   createdAt: Date;
   documentCount: number;
-}
+};
 
-export interface AnalyticsData {
+export type AnalyticsData = {
   documents: DocumentWithMetrics[];
   teamPerformance: TeamPerformance[] | null;
   clients: Client[];
-  ranges: Record<string, Date>;
+  ranges: {
+    "7d": Date;
+    "30d": Date;
+    "90d": Date;
+    "180d": Date;
+    "1y": Date;
+    "3y": Date;
+  };
   summary: {
     totalRevenue: number;
     averageProcessingTime: number;
     clientSatisfactionScore: number;
   };
-}
+};

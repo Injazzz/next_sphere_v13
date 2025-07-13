@@ -137,6 +137,8 @@ const getTimeStatus = (document: DocumentDetailProps["document"]) => {
   };
 };
 
+import { useDocumentNotification } from "@/hooks/use-document-notification";
+
 export function DocumentDetail({
   document: doc,
   session,
@@ -147,6 +149,9 @@ export function DocumentDetail({
   const isTeamLeader = doc.team?.members.some(
     (member) => member.user.id === session.user.id
   );
+
+  // Add notification hook for warning and overdue status
+  useDocumentNotification({ document: doc });
   const currentStatus = calculateDocumentStatus(doc);
 
   const useRealTimeRemainingTime = (

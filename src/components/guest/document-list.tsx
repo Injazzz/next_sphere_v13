@@ -83,6 +83,7 @@ export default function DocumentsList() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [totalCount, setTotalCount] = useState(0); // Tambah totalCount
 
   // Table states
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -95,16 +96,23 @@ export default function DocumentsList() {
 
   useEffect(() => {
     fetchDocuments();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.pageIndex, pagination.pageSize]); // fetch saat page berubah
 
   const fetchDocuments = async () => {
+    setLoading(true);
     try {
-      const response = await fetch("/api/guest/documents");
+      const params = new URLSearchParams({
+        page: (pagination.pageIndex + 1).toString(),
+        pageSize: pagination.pageSize.toString(),
+      });
+      const response = await fetch(`/api/guest/documents?${params.toString()}`);
       if (!response.ok) {
         throw new Error("Failed to fetch documents");
       }
       const data = await response.json();
       setDocuments(data.documents);
+      setTotalCount(data.total || data.count || 0); // pastikan API mengembalikan total
     } catch (error) {
       console.error("Error fetching documents:", error);
       toast.error("Failed to load documents");
@@ -268,6 +276,8 @@ export default function DocumentsList() {
     getSortedRowModel: getSortedRowModel(),
     globalFilterFn: "includesString",
     onGlobalFilterChange: setGlobalFilter,
+    manualPagination: true, // aktifkan manual pagination
+    pageCount: Math.ceil(totalCount / pagination.pageSize),
     state: {
       sorting,
       columnFilters,

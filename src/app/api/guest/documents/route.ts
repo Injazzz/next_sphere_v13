@@ -15,7 +15,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status");
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = parseInt(
+      searchParams.get("limit") || searchParams.get("pageSize") || "10"
+    );
     const offset = (page - 1) * limit;
 
     // Build where clause for filtering
@@ -42,6 +44,11 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Add status filter (langsung di Prisma, bukan setelah paginasi)
+    if (status && status !== "all") {
+      whereClause.status = status;
+    }
+
     // Get total count for pagination
     const totalCount = await prisma.document.count({
       where: whereClause,
@@ -62,7 +69,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate current status for each document
-    let documentsWithStatus = documents.map((doc) => ({
+    const documentsWithStatus = documents.map((doc) => ({
       ...doc,
       computedStatus: calculateServerDocumentStatus({
         status: doc.status,
@@ -73,18 +80,12 @@ export async function GET(request: NextRequest) {
       }),
     }));
 
-    // Apply status filter after computing status (since it's calculated)
-    if (status && status !== "all") {
-      documentsWithStatus = documentsWithStatus.filter(
-        (doc) => doc.computedStatus === status
-      );
-    }
-
     const totalPages = Math.ceil(totalCount / limit);
 
     return NextResponse.json(
       {
         documents: documentsWithStatus,
+        total: totalCount, // <-- tambahkan total di root
         pagination: {
           currentPage: page,
           totalPages,

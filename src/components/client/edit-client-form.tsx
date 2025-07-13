@@ -82,7 +82,6 @@ export function EditClientForm({ client }: { client: Client }) {
 
       toast.success("Client updated successfully");
       router.push("/dashboard/clients");
-      router.refresh();
     } catch (error) {
       toast.error("Failed to update client");
     } finally {

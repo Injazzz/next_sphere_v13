@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import { encryptFile } from "@/lib/file-encryption";
 import path from "path";
+import { sendEmailServerAction } from "@/lib/server/actions/send-mail.action";
 
 // Helper function to get authenticated user/client
 async function getAuthenticatedEntity() {
@@ -213,6 +214,35 @@ export async function POST(request: NextRequest) {
         }
       })
     );
+
+    // === Tambah notifikasi email ke pembuat dokumen jika client upload response ===
+    if (fileType === "response" && auth.type === "client") {
+      const doc = await prisma.document.findUnique({
+        where: { id: documentId },
+        include: {
+          createdBy: { select: { email: true, name: true } },
+          client: { select: { name: true } },
+        },
+      });
+      if (doc && doc.createdBy && doc.createdBy.email) {
+        const recipientName = doc.createdBy.name
+          ? ` ${doc.createdBy.name}`
+          : "";
+        const clientName = doc.client?.name ? ` ${doc.client.name}` : "";
+        const subject = "Dokumen Anda mendapat respon baru dari client";
+        const text = `Halo${recipientName},\n\nDokumen \"${doc.title}\" telah diupload file respon oleh client${clientName}.\n\nSilakan cek aplikasi untuk detail lebih lanjut.`;
+        const documentUrl = `${process.env.NEXT_PUBLIC_API_URL}/dashboard/documents/${doc.id}`;
+        await sendEmailServerAction({
+          to: doc.createdBy.email,
+          subject,
+          meta: {
+            description: text,
+            link: documentUrl,
+          },
+        });
+      }
+    }
+    // === END Tambah notifikasi ===
 
     return NextResponse.json(
       {

@@ -91,6 +91,16 @@ export function useDocumentTable() {
     }
   }, []);
 
+  const updateDocumentPinning = useCallback((doc: DocumentWithRelations) => {
+    return {
+      ...doc,
+      isPinned: doc.status.toLowerCase() === "overdue" ? true : doc.isPinned,
+      remainingTime: calculateRemainingTime(doc.endTrackAt),
+      isCritical:
+        calculateRemainingTime(doc.endTrackAt) < 5 * 24 * 60 * 60 * 1000,
+    };
+  }, []);
+
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
     try {
@@ -107,7 +117,7 @@ export function useDocumentTable() {
       const response = await fetch(`/api/documents?${params.toString()}`);
       const result = await response.json();
       if (response.ok) {
-        setData(result.data);
+        setData(result.data.map(updateDocumentPinning));
         setPagination((prev) => ({
           ...prev,
           totalCount: result.meta.total,
@@ -131,6 +141,7 @@ export function useDocumentTable() {
     typeFilter,
     statusFilter,
     teamDocuments,
+    updateDocumentPinning,
   ]);
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,18 +161,11 @@ export function useDocumentTable() {
   useEffect(() => {
     const interval = setInterval(() => {
       if (!loading) {
-        setData((prevData) =>
-          prevData.map((doc) => ({
-            ...doc,
-            remainingTime: calculateRemainingTime(doc.endTrackAt),
-            isCritical:
-              calculateRemainingTime(doc.endTrackAt) < 5 * 24 * 60 * 60 * 1000,
-          }))
-        );
+        setData((prevData) => prevData.map(updateDocumentPinning));
       }
     }, 60000);
     return () => clearInterval(interval);
-  }, [loading]);
+  }, [loading, updateDocumentPinning]);
 
   useEffect(() => {
     checkTeamLeaderStatus();

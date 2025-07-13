@@ -170,9 +170,24 @@ export async function DELETE(
       );
     }
 
+    // Cari dulu teamMember yang akan dihapus
+    const memberToDelete = await prisma.teamMember.findFirst({
+      where: {
+        teamId,
+        userId: memberId,
+      },
+    });
+    if (!memberToDelete) {
+      return NextResponse.json(
+        { error: "Member not found in this team" },
+        { status: 404 }
+      );
+    }
+
+    // Hapus pakai id teamMember
     await prisma.teamMember.delete({
       where: {
-        id: memberId,
+        id: memberToDelete.id,
       },
     });
 

@@ -21,6 +21,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { useGuestAuth } from "@/context/auth-guest";
+import Link from "next/link";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -51,15 +52,15 @@ export function GuestLoginForm({
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <div className='flex flex-col gap-6'>
             <div className='flex flex-col items-center gap-2'>
-              <a
-                href='#'
+              <Link
+                href='/'
                 className='flex flex-col items-center gap-2 font-medium'
               >
                 <div className='flex h-8 w-8 items-center justify-center rounded-md'>
                   <GalleryVerticalEnd className='size-6' />
                 </div>
                 <span className='sr-only'>Client Access</span>
-              </a>
+              </Link>
               <h1 className='text-xl font-bold'>Client Login</h1>
               <div className='text-center text-sm'>
                 Need help?{" "}

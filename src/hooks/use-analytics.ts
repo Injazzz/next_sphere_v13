@@ -243,24 +243,32 @@ export const useAnalytics = (data: AnalyticsData, initialTimeRange = "30d") => {
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 100);
   }, []);
-
   // Main export function with memoization
   const exportData = useCallback(
     async (format: "csv" | "excel" | "pdf") => {
       try {
+        const formatValue = (value: any) => {
+          if (value === null || value === undefined || value === "N/A")
+            return "-";
+          return value;
+        };
+
         const exportData = filteredDocuments.map((doc) => ({
-          Title: doc.title,
-          Type: doc.type,
-          Flow: doc.flow,
-          Status: doc.status,
-          Client: doc.client.name,
-          "Created At": new Date(doc.createdAt).toLocaleDateString(),
+          Title: formatValue(doc.title),
+          Type: formatValue(doc.type),
+          Flow: formatValue(doc.flow),
+          Status: formatValue(doc.status),
+          Client: formatValue(doc.client?.name),
+          "Created At": doc.createdAt
+            ? new Date(doc.createdAt).toLocaleDateString()
+            : "-",
           "Completed At": doc.completedAt
             ? new Date(doc.completedAt).toLocaleDateString()
-            : "N/A",
-          "Processing Time (days)": doc.processingTime || "N/A",
+            : "-",
+          // "Processing Time (days)": formatValue(doc.processingTime),
+
+          "Days Late": formatValue(doc.daysLate),
           "On Time": doc.isOnTime ? "Yes" : "No",
-          "Days Late": doc.daysLate || 0,
         }));
 
         const fileName = `analytics-${companyInfo.name

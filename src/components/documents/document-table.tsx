@@ -93,13 +93,7 @@ export function DocumentTable() {
                   data-state={row.getIsSelected() && "selected"}
                   data-row-id={row.id}
                   className={cn(
-                    "group transition-all duration-300 ease-in-out",
-                    row.original.isPinned
-                      ? "bg-yellow-50 dark:bg-yellow-900/10"
-                      : "",
-                    row.original.isCritical
-                      ? "border-l-4 border-orange-500"
-                      : ""
+                    "group transition-all duration-300 ease-in-out"
                   )}
                   style={{
                     transform:

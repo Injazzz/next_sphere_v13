@@ -183,7 +183,7 @@ export function AnalyticsDashboard({
         title='No Data Available'
         description='There are no documents in the selected time period. Try selecting a different time range or create some documents to see analytics.'
         actionLabel='Create Document'
-        onAction={() => (window.location.href = "/documents")}
+        onAction={() => (window.location.href = "/dashboard/documents")}
       />
     );
   }

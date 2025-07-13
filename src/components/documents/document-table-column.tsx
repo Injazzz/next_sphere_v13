@@ -58,7 +58,7 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
             throw new Error("Failed to update pin status");
           }
 
-          window.location.reload();
+          return await response.json();
         } catch (error) {
           toast.error("Failed to update pin status");
         } finally {
@@ -85,29 +85,26 @@ export const columns: ColumnDef<DocumentWithRelations>[] = [
     enableSorting: false,
     size: 40,
   },
-  {
-    id: "drag",
-    header: "",
-    cell: ({ row }) => (
-      <div
-        className='drag-handle cursor-grab active:cursor-grabbing p-1 rounded transition-colors opacity-0 group-hover:opacity-100'
-        data-row-id={row.id}
-      >
-        <GripVertical className='h-4 w-4 text-gray-400' />
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-    size: 40,
-  },
+  // {
+  //   id: "drag",
+  //   header: "",
+  //   cell: ({ row }) => (
+  //     <div
+  //       className='drag-handle cursor-grab active:cursor-grabbing p-1 rounded transition-colors opacity-0 group-hover:opacity-100'
+  //       data-row-id={row.id}
+  //     >
+  //       <GripVertical className='h-4 w-4 text-gray-400' />
+  //     </div>
+  //   ),
+  //   enableSorting: false,
+  //   enableHiding: false,
+  //   size: 40,
+  // },
   {
     accessorKey: "title",
     header: "Title",
     cell: ({ row }) => (
       <div className='font-medium text-sm flex items-center'>
-        {row.original.isPinned && (
-          <Pin className='h-3 w-3 text-yellow-500 fill-yellow-500 mr-1' />
-        )}
         {row.getValue("title")}
       </div>
     ),
